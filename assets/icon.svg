@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="中医刷题系统图标">
+  <rect width="512" height="512" rx="112" fill="#176b48"/>
+  <path fill="#fff" d="M128 112h256a32 32 0 0 1 32 32v224a32 32 0 0 1-32 32H128a32 32 0 0 1-32-32V144a32 32 0 0 1 32-32Zm24 72v40h208v-40H152Zm0 72v40h136v-40H152Zm0 72v40h176v-40H152Z"/>
+  <circle cx="352" cy="276" r="24" fill="#a0e6c3"/>
+</svg>

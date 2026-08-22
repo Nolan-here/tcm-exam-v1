@@ -1,0 +1,14 @@
+{
+  "name": "中医执业医师刷题系统",
+  "short_name": "中医刷题",
+  "description": "本地优先、无障碍的中医执业医师原创模拟刷题系统",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f4",
+  "theme_color": "#176b48",
+  "icons": [
+    {"src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}

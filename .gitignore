@@ -1,0 +1,8 @@
+node_modules/
+dist/
+pages-dist/
+.wrangler/
+__pycache__/
+*.pyc
+worker/*.generated.js
+*.log
