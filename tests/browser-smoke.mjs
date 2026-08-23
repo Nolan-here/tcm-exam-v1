@@ -105,6 +105,26 @@ try {
   assert.equal(await page.locator('.common-options').first().locator('p').count(), 5);
   assert.equal(await page.locator('.common-options').first().locator('li').count(), 0);
   assert.match(await page.locator('.question-card input[type="radio"]').first().getAttribute('aria-label'), /^A\. .+/);
+  const b1Groups = page.locator('.question-group');
+  const b1GroupCount = await b1Groups.count();
+  assert.ok(b1GroupCount > 0);
+  assert.equal(await page.locator('.question-card details').count(), 0);
+  assert.equal(await page.locator('details.group-explanation').count(), b1GroupCount);
+  assert.equal(await page.getByText('本组讲解', { exact: true }).count(), b1GroupCount);
+
+  const firstB1Group = b1Groups.first();
+  const firstB1Card = firstB1Group.locator('.question-card').first();
+  const firstB1Id = await firstB1Card.getAttribute('data-question-id');
+  const firstB1Answer = await page.evaluate(async questionId => {
+    const module = await import('./js/questions-bank.js');
+    return module.getQuestionById(questionId).answer;
+  }, firstB1Id);
+  const firstB1WrongLetter = 'ABCDE'.split('').find(letter => letter !== firstB1Answer);
+  const firstB1WrongInput = firstB1Card.locator(`input[value="${firstB1WrongLetter}"]`);
+  await firstB1WrongInput.focus();
+  await page.keyboard.press('Space');
+  await page.waitForFunction(element => element.getAttribute('aria-label')?.endsWith('。错误'), await firstB1WrongInput.elementHandle());
+  assert.equal(await firstB1Group.locator('details.group-explanation').getAttribute('open'), '');
 
   await page.getByRole('button', { name: '返回首页' }).click();
   await page.getByRole('button', { name: '考试模式' }).click();
@@ -168,6 +188,13 @@ try {
   assert.ok(await page.locator('.wrong-question').count() > 0);
   assert.equal(await page.getByRole('heading', { name: '错题和解析' }).count(), 1);
   assert.equal(await page.locator('.result-options li').count(), 0);
+  assert.ok(await page.locator('.wrong-question-group').count() > 0);
+  assert.equal(
+    await page.locator('.wrong-question-group .group-result-explanation').count(),
+    await page.locator('.wrong-question-group').count()
+  );
+  assert.equal(await page.locator('.wrong-question-group .wrong-question .result-options').count(), 0);
+  assert.equal(await page.locator('.wrong-question-group .wrong-question h4').count(), 0);
 
   const offlineContext = await browser.newContext();
   const offlinePage = await offlineContext.newPage();
