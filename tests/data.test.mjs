@@ -156,6 +156,14 @@ test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   assert.doesNotMatch(getQuestionById('2022-U4-068').explanation, /519$/);
   assert.doesNotMatch(getQuestionById('2021-U3-150').explanation, /第四单元$/);
   assert.match(getQuestionById('2018-U0-060').explanation, /=96。$/);
+  const falseOptionOTail = /(?:[A-E](?:项)?[Oo](?=$|[^A-Za-z])|I\)[Oo](?=$|[^A-Za-z]))/;
+  assert.ok(
+    importedPdfQuestions.every(question => !falseOptionOTail.test(question.explanation)),
+    '历年真题解析中仍有把句号误识别成选项 O 的内容',
+  );
+  assert.match(getQuestionById('2018-U0-157').explanation, /DIC。$/);
+  assert.match(getQuestionById('2021-U2-053').explanation, /答案为D。/);
+  assert.match(getQuestionById('2022-U2-093').explanation, /正确答案为B。/);
 
   const groups = new Map();
   for (const question of QUESTIONS.filter(item => item.groupId)) {
