@@ -30,7 +30,7 @@ RANGE_RE = re.compile(
 UNIT_RE = re.compile(r"第([一二三四])单元")
 ANSWER_RE = re.compile(r"[答荅][案秦].*?([A-E])(?:\b|$)", re.IGNORECASE)
 ANSWER_LINE_RE = re.compile(
-    r"^(?:[&]|[0-9IL]{1,3}[.．、,，]?)?[〖【\[(（]*[答荅][案秦]",
+    r"^(?:(?:[0-9IL&]{1,3})[.．、,，·一—-]?|[&·一—-])?[〖【\[(（]*[答荅][案秦]",
     re.IGNORECASE,
 )
 
@@ -260,13 +260,16 @@ def expected_sequence(year: int) -> list[tuple[int | None, int, int]]:
     return result
 
 
+def normalized_ocr_number(token: str) -> int:
+    return int(token.upper().replace("I", "1").replace("L", "1").replace("&", "8"))
+
+
 def parse_leading_number(text: str) -> tuple[int, str] | None:
     normalized = text.upper()
-    match = re.match(r"^[（(]?([0-9IL&]{1,3})[.．、,，]?\s*(.*)$", normalized)
+    match = re.match(r"^[（(]?([0-9IL&]{1,3})[.．、,，·]?\s*(.*)$", normalized)
     if not match or not any(character.isdigit() for character in match.group(1)):
         return None
-    token = match.group(1).replace("I", "1").replace("L", "1").replace("&", "8")
-    number = int(token)
+    number = normalized_ocr_number(match.group(1))
     if not 1 <= number <= 600:
         return None
     return number, match.group(2)
@@ -281,6 +284,38 @@ def nearby_number(lines: list[dict], index: int) -> int | None:
         if previous and not previous[1].strip("〖〗【】()（）"):
             return previous[0]
     return None
+
+
+def context_without_answer_anchor(context: list[str], recognized_number: int | None) -> list[str]:
+    """Exclude the current answer's standalone question number from the prior explanation."""
+    if not context or recognized_number is None:
+        return list(context)
+    parsed = parse_leading_number(context[-1])
+    if (
+        parsed
+        and parsed[0] == recognized_number
+        and not parsed[1].strip("〖〗【】[]()（）")
+    ):
+        cleaned = context[:-1]
+        if cleaned and UNIT_RE.search(cleaned[-1]):
+            cleaned = cleaned[:-1]
+        return cleaned
+    return list(context)
+
+
+def explanation_without_trailing_anchor(text: str, next_number: int | None) -> str:
+    """Remove a merged next-question number only when it matches the source sequence."""
+    if next_number is None:
+        return text
+    match = re.search(r"(?<![0-9A-Z])([0-9IL&]{1,3})[.．、,，·一—-]?\s*$", text, re.IGNORECASE)
+    if (
+        not match
+        or not any(character.isdigit() for character in match.group(1))
+        or normalized_ocr_number(match.group(1)) != next_number
+    ):
+        return text
+    cleaned = text[: match.start()].rstrip()
+    return re.sub(r"第[一二三四]单元\s*$", "", cleaned).rstrip()
 
 
 def align_records(observed: list[dict], expected: list[tuple[int | None, int, int]], year: int):
@@ -334,11 +369,12 @@ def parse_answers(year: int) -> tuple[list[dict], list[dict]]:
             pending_context.append(line["text"])
             continue
         match = ANSWER_RE.search(text)
+        recognized_number = nearby_number(lines, index)
         raw.append(
             {
-                "recognizedNumber": nearby_number(lines, index),
+                "recognizedNumber": recognized_number,
                 "answer": match.group(1) if match else None,
-                "context": pending_context,
+                "context": context_without_answer_anchor(pending_context, recognized_number),
                 "source": {key: line[key] for key in ("page", "column", "row", "line")},
                 "explanation": [],
             }
@@ -381,13 +417,24 @@ def parse_answers(year: int) -> tuple[list[dict], list[dict]]:
                     "source": item["source"],
                 }
             )
+        next_number = None
+        next_unit = unit
+        if index + 1 < len(expected):
+            next_unit, next_local_number, next_global_number = expected[index + 1]
+            next_number = next_global_number if EXPECTED[year]["global"] else next_local_number
+        explanation = explanation_without_trailing_anchor(
+            "".join(item["explanation"]).strip("〖〗【】解析:："),
+            next_number,
+        )
+        if next_unit != unit:
+            explanation = re.sub(r"第[一二三四]单元\s*$", "", explanation).rstrip()
         answers.append(
             {
                 "unit": unit,
                 "number": number,
                 "globalNumber": global_number,
                 "answer": item["answer"],
-                "explanation": "".join(item["explanation"]).strip("〖〗【】解析:："),
+                "explanation": explanation,
                 "source": item["source"],
                 "recognizedNumber": item["recognizedNumber"],
             }
@@ -998,3 +1045,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
