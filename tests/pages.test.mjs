@@ -21,7 +21,7 @@ test('GitHub Pages 输出可直接进入系统并包含离线资源', async () =
   assert.match(html, /<button class="mode-button" type="button" data-open-exam>考试模式<\/button>/);
   assert.match(html, /<script type="module" src="js\/app\.js\?v=16"><\/script>/);
   assert.doesNotMatch(html, /访问密钥|github-pages-access|pages-gate/);
-  assert.match(sw, /tcm-exam-v1-pages-20260823-20/);
+  assert.match(sw, /tcm-exam-v1-pages-20260823-21/);
   assert.doesNotMatch(sw, /pages-gate/);
   assert.match(sw, /\.\/js\/app\.js\?v=16/);
   assert.match(sw, /\.\/js\/questions-2018-2022\.js/);
