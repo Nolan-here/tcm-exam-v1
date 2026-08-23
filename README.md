@@ -30,9 +30,9 @@ http://127.0.0.1:4173
 
 ## GitHub Pages 长期测试
 
-公开测试地址为 `https://nolan-here.github.io/tcm-exam-v1/`。推送到 `main` 分支后，GitHub Actions 会运行测试并发布 `pages-dist` 中的静态网页。
+公开测试地址为 `https://nolan-here.github.io/tcm-exam-v1/`。网址可直接打开复习系统，不需要输入访问密钥。推送到 `main` 分支后，GitHub Actions 会运行测试并发布 `pages-dist` 中的静态网页。
 
-GitHub Pages 只提供静态托管，因此访问密钥页面属于简单遮挡，不能代替服务器端权限控制。密钥本身不以明文写入发布脚本，但公开仓库的源码和题库仍可被任何人查看。访问通过状态仅保存在当前浏览器中，有效期七天；答题数据继续保存在浏览器 IndexedDB，不会上传到 GitHub。
+GitHub Pages 和当前 GitHub 仓库均为公开访问，任何获得网址的人都可以打开网页并读取公开题库。答题数据仍只保存在各自浏览器的 IndexedDB 中，不会上传到 GitHub。
 
 ## 测试
 
