@@ -208,6 +208,14 @@ def sanitize_source_text(text: str) -> str:
     return text[:earliest].strip(" .．、,，;；:：·-—<〈>〉冫")
 
 
+def restore_explanation_punctuation(text: str) -> str:
+    """Restore full stops that OCR confused with a Latin O after answer letters."""
+    if not text:
+        return ""
+    text = re.sub(r"I\)[Oo](?=$|[^A-Za-z])", "D。", text)
+    return re.sub(r"(?<=[A-E])[Oo](?=$|[^A-Za-z])", "。", text)
+
+
 def clean_line(text: str) -> str:
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"\s+", "", text)
@@ -702,7 +710,7 @@ def fused_answer_map(year: int, low_answers: list[dict], high_answers: list[dict
         explanation = ANSWER_EXPLANATION_REPAIRS.get((year, global_number), "")
         if not explanation:
             explanation = (low or {}).get("explanation") or (high or {}).get("explanation") or ""
-        explanation = sanitize_source_text(explanation)
+        explanation = restore_explanation_punctuation(sanitize_source_text(explanation))
         result[global_number] = {"answer": answer, "explanation": explanation or "原文件未提供解析。"}
     return result, conflicts
 
