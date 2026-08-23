@@ -59,7 +59,7 @@ await writeFile(path.join(outputRoot, '.nojekyll'), '', 'utf8');
 
 const sourceSw = await readFile(path.join(outputRoot, 'sw.js'), 'utf8');
 const pagesSw = sourceSw
-  .replace("tcm-exam-v1-20260823-15", "tcm-exam-v1-pages-20260823-16")
+  .replace("tcm-exam-v1-20260823-16", "tcm-exam-v1-pages-20260823-17")
   .replace("'./js/app.js?v=15'", "'./pages-gate.js?v=2', './js/app.js?v=15'");
 await writeFile(path.join(outputRoot, 'sw.js'), pagesSw, 'utf8');
 
