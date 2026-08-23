@@ -23,7 +23,7 @@ await writeFile(path.join(outputRoot, '.nojekyll'), '', 'utf8');
 
 const sourceSw = await readFile(path.join(outputRoot, 'sw.js'), 'utf8');
 const pagesSw = sourceSw
-  .replace("tcm-exam-v1-20260823-17", "tcm-exam-v1-pages-20260823-20");
+  .replace("tcm-exam-v1-20260823-18", "tcm-exam-v1-pages-20260823-21");
 await writeFile(path.join(outputRoot, 'sw.js'), pagesSw, 'utf8');
 
 console.log(`GitHub Pages 静态文件已生成：${outputRoot}`);
