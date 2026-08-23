@@ -21,9 +21,10 @@ test('GitHub Pages 输出包含无障碍访问页和离线资源', async () => {
   assert.match(html, /<label for="github-pages-access-key">访问密钥<\/label>/);
   assert.match(html, /role="status" aria-live="assertive"/);
   assert.match(html, /<template id="github-pages-app-shell">/);
-  assert.doesNotMatch(html, /<script type="module" src="js\/app\.js\?v=14"><\/script>/);
-  assert.match(html, /<script type="module" src="pages-gate\.js\?v=1"><\/script>/);
+  assert.doesNotMatch(html, /<script type="module" src="js\/app\.js\?v=15"><\/script>/);
+  assert.match(html, /<script type="module" src="pages-gate\.js\?v=2"><\/script>/);
   assert.match(gate, /f0b12c406cbbaaccafb20542f2ee88922997e8c67bd8f8d7f983115de6c63bf8/);
   assert.doesNotMatch(gate, /5201314xwz/);
-  assert.match(sw, /\.\/pages-gate\.js\?v=1/);
+  assert.match(sw, /\.\/pages-gate\.js\?v=2/);
+  assert.match(sw, /\.\/js\/questions-2018-2022\.js/);
 });

@@ -70,7 +70,7 @@ try {
   await page.getByRole('button', { name: '返回首页' }).click();
   await page.getByRole('button', { name: '复习模式' }).click();
   await page.getByRole('button', { name: '自定义数量' }).click();
-  await page.getByLabel('自定义题量，1 到 990 题').fill('990');
+  await page.getByLabel('自定义题量，1 到 3496 题').fill('3496');
   await page.getByRole('button', { name: '开始复习' }).click();
   await page.locator('.question-card').first().waitFor();
   const reviewTypePages = await page.evaluate(async () => {
@@ -102,7 +102,8 @@ try {
   await page.locator('[data-page-jump]').getByRole('button', { name: '跳转' }).click();
   await page.getByRole('heading', { name: 'B1型题', exact: true }).waitFor();
   assert.ok(await page.getByRole('heading', { name: /共用备选答案/ }).count() > 0);
-  assert.equal(await page.locator('.common-options').first().locator('li').count(), 5);
+  assert.equal(await page.locator('.common-options').first().locator('p').count(), 5);
+  assert.equal(await page.locator('.common-options').first().locator('li').count(), 0);
   assert.match(await page.locator('.question-card input[type="radio"]').first().getAttribute('aria-label'), /^A\. .+/);
 
   await page.getByRole('button', { name: '返回首页' }).click();
@@ -166,6 +167,7 @@ try {
   assert.match(await page.locator('.result-summary').innerText(), /答对 \d+ 题，答错 \d+ 题/);
   assert.ok(await page.locator('.wrong-question').count() > 0);
   assert.equal(await page.getByRole('heading', { name: '错题和解析' }).count(), 1);
+  assert.equal(await page.locator('.result-options li').count(), 0);
 
   const offlineContext = await browser.newContext();
   const offlinePage = await offlineContext.newPage();

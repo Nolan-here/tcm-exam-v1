@@ -132,7 +132,7 @@ function groupContext(block, session) {
     const options = block.questions[0].sharedOptions || block.questions[0].options;
     return `<section class="card group-context" aria-labelledby="group-${block.id}">
       <h3 id="group-${block.id}" tabindex="-1">${range}共用备选答案</h3>
-      <ul class="common-options">${Object.entries(options).map(([letter, text]) => `<li>${letter}. ${esc(text)}</li>`).join('')}</ul>
+      <div class="common-options">${Object.entries(options).map(([letter, text]) => `<p>${letter}. ${esc(text)}</p>`).join('')}</div>
     </section>`;
   }
   return '';
@@ -321,9 +321,9 @@ function renderExamTransition() {
 function wrongQuestionCard(question, sequence, answer) {
   return `<article class="card question-card wrong-question">
     <h3>${sequence}. ${esc(question.stem)}（ ）</h3>
-    <ul class="result-options">
-      ${Object.entries(question.options).map(([letter, text]) => `<li>${letter}. ${esc(text)}</li>`).join('')}
-    </ul>
+    <div class="result-options">
+      ${Object.entries(question.options).map(([letter, text]) => `<p>${letter}. ${esc(text)}</p>`).join('')}
+    </div>
     <p><strong>你的答案：${answer?.current ? `${answer.current}. ${esc(question.options[answer.current])}` : '未作答'}</strong></p>
     <p><strong>正确答案：${question.answer}. ${esc(question.options[question.answer])}</strong></p>
     <h4>本题解析</h4>

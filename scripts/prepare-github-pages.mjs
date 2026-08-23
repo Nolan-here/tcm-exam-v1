@@ -24,7 +24,7 @@ const bodyMatch = sourceHtml.match(/<body>([\s\S]*?)<\/body>/i);
 if (!bodyMatch) throw new Error('无法读取 index.html 的 body');
 
 const appBody = bodyMatch[1].replace(
-  /\s*<script type="module" src="js\/app\.js\?v=14"><\/script>\s*/i,
+  /\s*<script type="module" src="js\/app\.js\?v=15"><\/script>\s*/i,
   '\n'
 );
 
@@ -50,7 +50,7 @@ const pagesBody = `<body>
       <p>访问验证和刷题功能需要 JavaScript。</p>
     </section>
   </noscript>
-  <script type="module" src="pages-gate.js?v=1"></script>
+  <script type="module" src="pages-gate.js?v=2"></script>
 </body>`;
 
 const pagesHtml = sourceHtml.replace(/<body>[\s\S]*?<\/body>/i, pagesBody);
@@ -59,8 +59,8 @@ await writeFile(path.join(outputRoot, '.nojekyll'), '', 'utf8');
 
 const sourceSw = await readFile(path.join(outputRoot, 'sw.js'), 'utf8');
 const pagesSw = sourceSw
-  .replace("tcm-exam-v1-20260822-14", "tcm-exam-v1-pages-20260822-15")
-  .replace("'./js/app.js?v=14'", "'./pages-gate.js?v=1', './js/app.js?v=14'");
+  .replace("tcm-exam-v1-20260823-15", "tcm-exam-v1-pages-20260823-16")
+  .replace("'./js/app.js?v=15'", "'./pages-gate.js?v=2', './js/app.js?v=15'");
 await writeFile(path.join(outputRoot, 'sw.js'), pagesSw, 'utf8');
 
 console.log(`GitHub Pages 静态文件已生成：${outputRoot}`);

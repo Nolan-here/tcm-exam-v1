@@ -1,8 +1,10 @@
-const CACHE_NAME = 'tcm-exam-v1-20260822-14';
+const CACHE_NAME = 'tcm-exam-v1-20260823-15';
 const APP_SHELL = [
-  './', './index.html', './styles.css?v=8', './manifest.webmanifest', './assets/icon.svg',
-  './js/app.js?v=14', './js/db.js', './js/questions-bank.js',
-  './js/questions-2024.js', './js/questions-2023.js'
+  './', './index.html', './styles.css?v=9', './manifest.webmanifest', './assets/icon.svg',
+  './js/app.js?v=15', './js/db.js', './js/questions-bank.js',
+  './js/questions-2024.js', './js/questions-2023.js', './js/questions-2018-2022.js',
+  './js/questions-2018.js', './js/questions-2019.js', './js/questions-2020.js',
+  './js/questions-2021.js', './js/questions-2022.js'
 ];
 
 self.addEventListener('install', event => {

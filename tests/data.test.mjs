@@ -17,21 +17,33 @@ import {
   getQuestionsForUnit
 } from '../js/questions-bank.js';
 import { QUESTION_BANK_2023_STATS } from '../js/questions-2023.js';
+import { QUESTION_BANK_2018_2022_STATS } from '../js/questions-2018-2022.js';
 import { createSyncPayload, mergeSyncPayload } from '../js/sync.js';
 import { backupPayload, validateBackup } from '../js/db.js';
 
-test('2023 与 2024 年题库去重合并后的总数和四单元分配准确', () => {
-  assert.equal(QUESTION_BANK_VERSION, '2023-2024-docx-dedup-grouped-v2');
-  assert.equal(QUESTIONS.length, 990);
+test('2018 至 2024 年题库去重合并后的总数和四单元分配准确', () => {
+  assert.equal(QUESTION_BANK_VERSION, '2018-2024-pdf-docx-dedup-grouped-v3');
+  assert.equal(QUESTIONS.length, 3496);
   assert.deepEqual(EXAM_UNITS.map(item => item.count), [150, 150, 150, 150]);
   assert.deepEqual(QUESTION_BANK_STATS, {
     questions2024: 391,
     questions2023Added: 599,
-    questions2023RemovedAsDuplicates: 1
+    questions2023RemovedAsDuplicates: 1,
+    questions2018To2022Added: 2506,
+    questions2018To2022RemovedAsDuplicates: 20,
+    questions2018To2022ExcludedAsIncomplete: 12
   });
   assert.equal(QUESTION_BANK_2023_STATS.sourceQuestionCount, 600);
   assert.equal(QUESTION_BANK_2023_STATS.removedDuplicateCount, 1);
-  assert.equal(QUESTION_BANK_SOURCES.length, 3);
+  assert.equal(QUESTION_BANK_SOURCES.length, 13);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.sourceQuestionCount, 2538);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.builtBeforeDedup, 2526);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.addedQuestionCount, 2506);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.removedDuplicateCount, 20);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(QUESTION_BANK_2018_2022_STATS.perYear).map(([year, stats]) => [year, stats.answerConflicts])),
+    { 2018: [], 2019: [], 2020: [], 2021: [], 2022: [] }
+  );
   for (const { unit } of EXAM_UNITS) {
     const questions = getQuestionsForUnit(unit);
     assert.ok(questions.every(question => question.unit === unit));
@@ -73,7 +85,7 @@ test('考试按 2023 年原卷题型配额随机组成四个 150 题单元', () 
 });
 
 test('复习组卷题量准确，题型不混页且不拆分 A3、B1 题组', () => {
-  for (const count of [10, 17, 50, 100, 990]) {
+  for (const count of [10, 17, 50, 100, QUESTIONS.length]) {
     const paper = createReviewPaper(count, () => 0.625);
     const pages = createQuestionPages(paper);
     assert.equal(paper.length, count);
@@ -92,7 +104,10 @@ test('复习组卷题量准确，题型不混页且不拆分 A3、B1 题组', ()
 
 test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   assert.equal(new Set(QUESTIONS.map(question => question.id)).size, QUESTIONS.length);
-  assert.equal(new Set(QUESTIONS.map(question => question.stem.replace(/\s+/g, ''))).size, QUESTIONS.length);
+  const normalizedQuestions = QUESTIONS.map(question => (
+    question.stem + Object.values(question.options).join('')
+  ).normalize('NFKC').replace(/[^0-9A-Za-z\u3400-\u9fff]/g, '').toLowerCase());
+  assert.equal(new Set(normalizedQuestions).size, QUESTIONS.length);
   for (const question of QUESTIONS) {
     assert.equal(getQuestionById(question.id), question);
     assert.ok(question.stem, `${question.id} 缺少题干`);
@@ -209,6 +224,8 @@ test('考试按四单元出题，交卷前不显示反馈或讲解，交卷后�
   assert.match(app, /答对 \$\{exam\.result\.correct\} 题，答错 \$\{exam\.result\.wrong\} 题/);
   assert.match(app, /错题和解析/);
   assert.match(app, /wrongIds/);
+  assert.doesNotMatch(app, /<ul class="common-options"/);
+  assert.doesNotMatch(app, /<ul class="result-options"/);
 });
 
 test('Service Worker 离线缓存包含新题库和当前资源版本', async () => {
@@ -216,6 +233,10 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   assert.match(worker, /questions-bank\.js/);
   assert.match(worker, /questions-2023\.js/);
   assert.match(worker, /questions-2024\.js/);
-  assert.match(worker, /app\.js\?v=14/);
-  assert.match(worker, /styles\.css\?v=8/);
+  assert.match(worker, /questions-2018-2022\.js/);
+  for (const year of [2018, 2019, 2020, 2021, 2022]) {
+    assert.match(worker, new RegExp(`questions-${year}\\.js`));
+  }
+  assert.match(worker, /app\.js\?v=15/);
+  assert.match(worker, /styles\.css\?v=9/);
 });

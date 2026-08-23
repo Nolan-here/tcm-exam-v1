@@ -172,8 +172,8 @@ main { padding-block: 2rem 5rem; }
 }
 
 .group-context h3 { margin-top: 0; }
-.common-options { margin-bottom: 0; padding-left: 1.6rem; }
-.common-options li { margin-block: .35rem; }
+.common-options { margin-bottom: 0; }
+.common-options p { margin-block: .35rem; }
 .question-group { margin-bottom: 1.35rem; }
 .transition-confirmation strong { color: var(--danger); }
 
@@ -265,8 +265,7 @@ input[type="number"] {
 .submit-area { margin-top: 1.25rem; }
 
 .result-summary p { margin: .35rem 0; }
-.result-options { padding-left: 1.5rem; }
-.result-options li { margin-block: .35rem; }
+.result-options p { margin-block: .35rem; }
 .wrong-question h4 { margin-bottom: 0; }
 
 .actions {

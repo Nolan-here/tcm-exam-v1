@@ -4,15 +4,29 @@ import {
   QUESTION_BANK_2023_SOURCES,
   QUESTION_BANK_2023_STATS
 } from './questions-2023.js';
+import {
+  QUESTIONS_2018_2022,
+  QUESTION_BANK_2018_2022_SOURCES,
+  QUESTION_BANK_2018_2022_STATS
+} from './questions-2018-2022.js';
 
-export const QUESTION_BANK_VERSION = '2023-2024-docx-dedup-grouped-v2';
-export const QUESTION_BANK_SOURCES = [QUESTION_BANK_2024_SOURCE, ...QUESTION_BANK_2023_SOURCES];
+export const QUESTION_BANK_VERSION = '2018-2024-pdf-docx-dedup-grouped-v3';
+export const QUESTION_BANK_SOURCES = [
+  QUESTION_BANK_2024_SOURCE,
+  ...QUESTION_BANK_2023_SOURCES,
+  ...QUESTION_BANK_2018_2022_SOURCES
+];
 export const QUESTION_BANK_STATS = {
   questions2024: QUESTIONS_2024.length,
   questions2023Added: QUESTIONS_2023.length,
-  questions2023RemovedAsDuplicates: QUESTION_BANK_2023_STATS.removedDuplicateCount
+  questions2023RemovedAsDuplicates: QUESTION_BANK_2023_STATS.removedDuplicateCount,
+  questions2018To2022Added: QUESTIONS_2018_2022.length,
+  questions2018To2022RemovedAsDuplicates: QUESTION_BANK_2018_2022_STATS.removedDuplicateCount,
+  questions2018To2022ExcludedAsIncomplete:
+    QUESTION_BANK_2018_2022_STATS.sourceQuestionCount
+    - QUESTION_BANK_2018_2022_STATS.builtBeforeDedup
 };
-export const QUESTIONS = [...QUESTIONS_2024, ...QUESTIONS_2023];
+export const QUESTIONS = [...QUESTIONS_2024, ...QUESTIONS_2023, ...QUESTIONS_2018_2022];
 
 const UNIT_NAMES = ['一', '二', '三', '四'];
 export const PAPER_FORMAT_VERSION = 'grouped-types-v1';
