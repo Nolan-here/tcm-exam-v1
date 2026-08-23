@@ -50,7 +50,7 @@ const pagesBody = `<body>
       <p>访问验证和刷题功能需要 JavaScript。</p>
     </section>
   </noscript>
-  <script type="module" src="pages-gate.js?v=2"></script>
+  <script type="module" src="pages-gate.js?v=3"></script>
 </body>`;
 
 const pagesHtml = sourceHtml.replace(/<body>[\s\S]*?<\/body>/i, pagesBody);
@@ -59,8 +59,8 @@ await writeFile(path.join(outputRoot, '.nojekyll'), '', 'utf8');
 
 const sourceSw = await readFile(path.join(outputRoot, 'sw.js'), 'utf8');
 const pagesSw = sourceSw
-  .replace("tcm-exam-v1-20260823-17", "tcm-exam-v1-pages-20260823-18")
-  .replace("'./js/app.js?v=16'", "'./pages-gate.js?v=2', './js/app.js?v=16'");
+  .replace("tcm-exam-v1-20260823-17", "tcm-exam-v1-pages-20260823-19")
+  .replace("'./js/app.js?v=16'", "'./pages-gate.js?v=3', './js/app.js?v=16'");
 await writeFile(path.join(outputRoot, 'sw.js'), pagesSw, 'utf8');
 
 console.log(`GitHub Pages 静态文件已生成：${outputRoot}`);
