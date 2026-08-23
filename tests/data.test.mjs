@@ -131,6 +131,32 @@ test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   assert.equal(new Set(repairedGroup.map(question => question.groupId)).size, 1);
   assert.doesNotMatch(repairedGroup[0].options.B, /^B[.．、]/);
 
+  const importedPdfQuestions = QUESTIONS.filter(question => {
+    const year = Number(question.id.slice(0, 4));
+    return year >= 2018 && year <= 2022;
+  });
+  for (const question of importedPdfQuestions) {
+    const year = Number(question.id.slice(0, 4));
+    const globalNumber = year === 2018 ? question.number : (question.unit - 1) * 150 + question.number;
+    const unitCounts2021 = [150, 150, 150, 126];
+    const expectedNextNumber = year === 2021
+      ? question.number < unitCounts2021[question.unit - 1]
+        ? question.number + 1
+        : question.unit < 4 ? 1 : null
+      : globalNumber < (year === 2018 ? 162 : 600) ? globalNumber + 1 : null;
+    const trailingToken = question.explanation.match(/([0-9IL&]{1,3})[.．、,，]?$/i)?.[1];
+    if (!trailingToken) continue;
+    const normalizedNumber = Number(
+      trailingToken.toUpperCase().replaceAll('I', '1').replaceAll('L', '1').replaceAll('&', '8')
+    );
+    assert.notEqual(normalizedNumber, expectedNextNumber, `${question.id} 解析末尾混入下一题编号`);
+  }
+  assert.ok(importedPdfQuestions.every(question => !/第[一二三四]单元$/.test(question.explanation)));
+  assert.doesNotMatch(getQuestionById('2022-U2-080').explanation, /23L$/);
+  assert.doesNotMatch(getQuestionById('2022-U4-068').explanation, /519$/);
+  assert.doesNotMatch(getQuestionById('2021-U3-150').explanation, /第四单元$/);
+  assert.match(getQuestionById('2018-U0-060').explanation, /=96。$/);
+
   const groups = new Map();
   for (const question of QUESTIONS.filter(item => item.groupId)) {
     if (!groups.has(question.groupId)) groups.set(question.groupId, []);
@@ -240,3 +266,4 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   assert.match(worker, /app\.js\?v=15/);
   assert.match(worker, /styles\.css\?v=9/);
 });
+
