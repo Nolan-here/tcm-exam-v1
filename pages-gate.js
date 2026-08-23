@@ -28,7 +28,7 @@ async function openApp() {
   const template = document.querySelector('#github-pages-app-shell');
   if (!template) throw new Error('未找到应用页面');
   document.body.replaceChildren(template.content.cloneNode(true));
-  await import('./js/app.js?v=15');
+  await import('./js/app.js?v=16');
 }
 
 const form = document.querySelector('#github-pages-access-form');
