@@ -266,4 +266,3 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   assert.match(worker, /app\.js\?v=15/);
   assert.match(worker, /styles\.css\?v=9/);
 });
-
