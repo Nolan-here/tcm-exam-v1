@@ -24,7 +24,7 @@ const bodyMatch = sourceHtml.match(/<body>([\s\S]*?)<\/body>/i);
 if (!bodyMatch) throw new Error('无法读取 index.html 的 body');
 
 const appBody = bodyMatch[1].replace(
-  /\s*<script type="module" src="js\/app\.js\?v=15"><\/script>\s*/i,
+  /\s*<script type="module" src="js\/app\.js\?v=16"><\/script>\s*/i,
   '\n'
 );
 
@@ -59,8 +59,8 @@ await writeFile(path.join(outputRoot, '.nojekyll'), '', 'utf8');
 
 const sourceSw = await readFile(path.join(outputRoot, 'sw.js'), 'utf8');
 const pagesSw = sourceSw
-  .replace("tcm-exam-v1-20260823-16", "tcm-exam-v1-pages-20260823-17")
-  .replace("'./js/app.js?v=15'", "'./pages-gate.js?v=2', './js/app.js?v=15'");
+  .replace("tcm-exam-v1-20260823-17", "tcm-exam-v1-pages-20260823-18")
+  .replace("'./js/app.js?v=16'", "'./pages-gate.js?v=2', './js/app.js?v=16'");
 await writeFile(path.join(outputRoot, 'sw.js'), pagesSw, 'utf8');
 
 console.log(`GitHub Pages 静态文件已生成：${outputRoot}`);
