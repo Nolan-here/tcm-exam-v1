@@ -99,8 +99,8 @@ function questionOptions(question, answer, mode, compact = false) {
   }).join('');
 }
 
-function questionCard(question, sequence, answer, mode, compactOptions = false) {
-  const explanation = mode === 'review'
+function questionCard(question, sequence, answer, mode, compactOptions = false, showIndividualExplanation = true) {
+  const explanation = mode === 'review' && showIndividualExplanation
     ? `<details class="explanation"${answer?.firstCorrect === false ? ' open' : ''}>
         <summary>本题讲解</summary>
         <p><strong>正确答案：${question.answer}. ${esc(question.options[question.answer])}</strong></p>
@@ -117,11 +117,59 @@ function questionCard(question, sequence, answer, mode, compactOptions = false) 
   </article>`;
 }
 
+function questionSequence(session, question) {
+  return session.questionIds.indexOf(question.id) + 1;
+}
+
+function questionRange(block, session) {
+  const first = questionSequence(session, block.questions[0]);
+  const last = questionSequence(session, block.questions.at(-1));
+  return first === last ? `第 ${first} 题` : `第 ${first} 至 ${last} 题`;
+}
+
+function hasProvidedExplanation(question) {
+  const explanation = String(question.explanation ?? '').trim();
+  return Boolean(explanation) && explanation !== '原文件未提供解析。';
+}
+
+function b1GroupExplanationBody(block, session) {
+  const answerLines = block.questions.map(question => {
+    const sequence = questionSequence(session, question);
+    return `<p><strong>第 ${sequence} 题正确答案：${question.answer}. ${esc(question.options[question.answer])}</strong></p>`;
+  }).join('');
+  const provided = block.questions.filter(hasProvidedExplanation);
+  const uniqueExplanations = [...new Set(provided.map(question => String(question.explanation).trim()))];
+  let explanationContent;
+
+  if (!provided.length) {
+    explanationContent = '<p>原文件未提供本组解析。</p>';
+  } else if (provided.length < block.questions.length || uniqueExplanations.length === 1) {
+    const label = provided.length < block.questions.length ? '原文件合并解析' : '共用解析';
+    explanationContent = `<h4>${questionRange(block, session)}${label}</h4>${uniqueExplanations.map(text => `<p>${esc(text)}</p>`).join('')}`;
+  } else {
+    explanationContent = provided.map(question => {
+      const sequence = questionSequence(session, question);
+      return `<section aria-labelledby="explanation-${question.id}">
+        <h4 id="explanation-${question.id}">第 ${sequence} 题解析</h4>
+        <p>${esc(question.explanation)}</p>
+      </section>`;
+    }).join('');
+  }
+
+  return `${answerLines}${explanationContent}`;
+}
+
+function b1ReviewExplanation(block, session) {
+  const open = block.questions.some(question => session.answers[question.id]?.firstCorrect === false);
+  return `<details class="explanation group-explanation"${open ? ' open' : ''}>
+    <summary>本组讲解</summary>
+    ${b1GroupExplanationBody(block, session)}
+  </details>`;
+}
+
 function groupContext(block, session) {
   if (!block.questions[0]?.groupId) return '';
-  const first = session.questionIds.indexOf(block.questions[0].id) + 1;
-  const last = session.questionIds.indexOf(block.questions.at(-1).id) + 1;
-  const range = first === last ? `第 ${first} 题` : `第 ${first} 至 ${last} 题`;
+  const range = questionRange(block, session);
   if (block.type === 'A3') {
     return `<section class="card group-context" aria-labelledby="group-${block.id}">
       <h3 id="group-${block.id}" tabindex="-1">${range}共用题干</h3>
@@ -140,13 +188,15 @@ function groupContext(block, session) {
 
 function renderQuestionPage(questions, session, mode) {
   return createQuestionBlocks(questions).map(block => {
-    const compactOptions = block.type === 'B1' && Boolean(block.questions[0]?.groupId);
+    const isB1Group = block.type === 'B1' && Boolean(block.questions[0]?.groupId);
+    const compactOptions = isB1Group;
     return `<section class="question-group" data-question-group="${esc(block.id)}">
       ${groupContext(block, session)}
       ${block.questions.map(question => {
         const sequence = session.questionIds.indexOf(question.id) + 1;
-        return questionCard(question, sequence, session.answers[question.id], mode, compactOptions);
+        return questionCard(question, sequence, session.answers[question.id], mode, compactOptions, !isB1Group);
       }).join('')}
+      ${mode === 'review' && isB1Group ? b1ReviewExplanation(block, session) : ''}
     </section>`;
   }).join('');
 }
@@ -318,17 +368,48 @@ function renderExamTransition() {
     </div>`;
 }
 
-function wrongQuestionCard(question, sequence, answer) {
+function wrongQuestionCard(question, sequence, answer, { showOptions = true, showExplanation = true } = {}) {
+  const prompt = question.prompt || question.stem;
   return `<article class="card question-card wrong-question">
-    <h3>${sequence}. ${esc(question.stem)}（ ）</h3>
-    <div class="result-options">
+    <h3>${sequence}. ${esc(prompt)}（ ）</h3>
+    ${showOptions ? `<div class="result-options">
       ${Object.entries(question.options).map(([letter, text]) => `<p>${letter}. ${esc(text)}</p>`).join('')}
-    </div>
+    </div>` : ''}
     <p><strong>你的答案：${answer?.current ? `${answer.current}. ${esc(question.options[answer.current])}` : '未作答'}</strong></p>
     <p><strong>正确答案：${question.answer}. ${esc(question.options[question.answer])}</strong></p>
-    <h4>本题解析</h4>
-    <p>${esc(question.explanation)}</p>
+    ${showExplanation ? `<h4>本题解析</h4><p>${esc(question.explanation)}</p>` : ''}
   </article>`;
+}
+
+function renderWrongResults(exam, wrongIds) {
+  const wrongSet = new Set(wrongIds);
+  const handledGroups = new Set();
+  return wrongIds.map(questionId => {
+    const question = getQuestionById(questionId);
+    if (question.type !== 'B1' || !question.groupId) {
+      const sequence = questionSequence(exam, question);
+      return wrongQuestionCard(question, sequence, exam.answers[question.id]);
+    }
+    if (handledGroups.has(question.groupId)) return '';
+    handledGroups.add(question.groupId);
+    const groupQuestions = exam.questionIds
+      .map(getQuestionById)
+      .filter(item => item.groupId === question.groupId);
+    const block = { id: question.groupId, type: 'B1', questions: groupQuestions };
+    return `<section class="question-group wrong-question-group" data-question-group="${esc(block.id)}">
+      ${groupContext(block, exam)}
+      ${groupQuestions.filter(item => wrongSet.has(item.id)).map(item => (
+        wrongQuestionCard(item, questionSequence(exam, item), exam.answers[item.id], {
+          showOptions: false,
+          showExplanation: false
+        })
+      )).join('')}
+      <section class="card explanation group-result-explanation" aria-labelledby="result-explanation-${esc(block.id)}">
+        <h4 id="result-explanation-${esc(block.id)}">本组讲解</h4>
+        ${b1GroupExplanationBody(block, exam)}
+      </section>
+    </section>`;
+  }).join('');
 }
 
 function renderExamResult() {
@@ -344,10 +425,7 @@ function renderExamResult() {
       <p><strong>答对 ${exam.result.correct} 题，答错 ${exam.result.wrong} 题。</strong></p>
     </section>
     ${wrongIds.length
-      ? `<section aria-labelledby="wrong-heading"><h3 id="wrong-heading">错题和解析</h3>${wrongIds.map(questionId => {
-          const sequence = exam.questionIds.indexOf(questionId) + 1;
-          return wrongQuestionCard(getQuestionById(questionId), sequence, exam.answers[questionId]);
-        }).join('')}</section>`
+      ? `<section aria-labelledby="wrong-heading"><h3 id="wrong-heading">错题和解析</h3>${renderWrongResults(exam, wrongIds)}</section>`
       : '<p class="notice">本单元全部回答正确。</p>'}
     <div class="actions">
       <button type="button" data-exam-units>返回单元选择</button>
@@ -398,7 +476,14 @@ async function saveReviewAnswer(input) {
   selectedLabel.querySelector('span').textContent = card.dataset.compactOptions === 'true'
     ? `${input.value}。${correct ? '正确' : '错误'}`
     : optionText;
-  card.querySelector('.explanation').open = answer.firstCorrect === false;
+  const individualExplanation = card.querySelector('.explanation');
+  const groupExplanation = card.closest('.question-group')?.querySelector('.group-explanation');
+  if (individualExplanation) individualExplanation.open = answer.firstCorrect === false;
+  if (groupExplanation) {
+    const groupQuestionIds = [...card.closest('.question-group').querySelectorAll('.question-card')]
+      .map(item => item.dataset.questionId);
+    groupExplanation.open = groupQuestionIds.some(id => session.answers[id]?.firstCorrect === false);
+  }
   if (correct) card.querySelectorAll('input[type="radio"]').forEach(radio => { radio.disabled = true; });
 }
 
