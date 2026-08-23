@@ -223,6 +223,11 @@ test('复习题把选项框、正文和状态合并为一个无障碍名称，�
   assert.match(app, /optionResults/);
   assert.match(app, /正确' : '错误'/);
   assert.match(app, /<summary>本题讲解<\/summary>/);
+  assert.match(app, /<summary>本组讲解<\/summary>/);
+  assert.match(app, /原文件未提供本组解析/);
+  assert.match(app, /原文件合并解析/);
+  assert.match(app, /group-explanation/);
+  assert.match(app, /showIndividualExplanation/);
   assert.match(app, /answer\.firstCorrect === false/);
   assert.match(app, /共用题干/);
   assert.match(app, /共用备选答案/);
@@ -250,6 +255,9 @@ test('考试按四单元出题，交卷前不显示反馈或讲解，交卷后�
   assert.match(app, /答对 \$\{exam\.result\.correct\} 题，答错 \$\{exam\.result\.wrong\} 题/);
   assert.match(app, /错题和解析/);
   assert.match(app, /wrongIds/);
+  assert.match(app, /renderWrongResults/);
+  assert.match(app, /group-result-explanation/);
+  assert.match(app, />本组讲解<\/h4>/);
   assert.doesNotMatch(app, /<ul class="common-options"/);
   assert.doesNotMatch(app, /<ul class="result-options"/);
 });
@@ -263,6 +271,6 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   for (const year of [2018, 2019, 2020, 2021, 2022]) {
     assert.match(worker, new RegExp(`questions-${year}\\.js`));
   }
-  assert.match(worker, /app\.js\?v=15/);
+  assert.match(worker, /app\.js\?v=16/);
   assert.match(worker, /styles\.css\?v=9/);
 });
