@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tcm-exam-v1-20260823-17';
+const CACHE_NAME = 'tcm-exam-v1-20260823-18';
 const APP_SHELL = [
   './', './index.html', './styles.css?v=9', './manifest.webmanifest', './assets/icon.svg',
   './js/app.js?v=16', './js/db.js', './js/questions-bank.js',
