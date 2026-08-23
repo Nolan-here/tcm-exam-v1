@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tcm-exam-v1-20260823-15';
+const CACHE_NAME = 'tcm-exam-v1-20260823-16';
 const APP_SHELL = [
   './', './index.html', './styles.css?v=9', './manifest.webmanifest', './assets/icon.svg',
   './js/app.js?v=15', './js/db.js', './js/questions-bank.js',
@@ -31,3 +31,4 @@ self.addEventListener('fetch', event => {
     }).catch(() => caches.match('./index.html')))
   );
 });
+
