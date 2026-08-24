@@ -22,24 +22,26 @@ import { createSyncPayload, mergeSyncPayload } from '../js/sync.js';
 import { backupPayload, validateBackup } from '../js/db.js';
 
 test('2018 至 2024 年题库去重合并后的总数和四单元分配准确', () => {
-  assert.equal(QUESTION_BANK_VERSION, '2018-2024-pdf-docx-dedup-grouped-v3');
-  assert.equal(QUESTIONS.length, 3496);
+  assert.equal(QUESTION_BANK_VERSION, '2018-2024-pdf-docx-dedup-grouped-v4');
+  assert.equal(QUESTIONS.length, 3492);
   assert.deepEqual(EXAM_UNITS.map(item => item.count), [150, 150, 150, 150]);
   assert.deepEqual(QUESTION_BANK_STATS, {
     questions2024: 391,
     questions2023Added: 599,
     questions2023RemovedAsDuplicates: 1,
-    questions2018To2022Added: 2506,
-    questions2018To2022RemovedAsDuplicates: 20,
-    questions2018To2022ExcludedAsIncomplete: 12
+    questions2018To2022Added: 2502,
+    questions2018To2022RemovedAsDuplicates: 21,
+    questions2018To2022RemovedAsGroupCompanions: 1,
+    questions2018To2022ExcludedAsIncomplete: 14
   });
   assert.equal(QUESTION_BANK_2023_STATS.sourceQuestionCount, 600);
   assert.equal(QUESTION_BANK_2023_STATS.removedDuplicateCount, 1);
   assert.equal(QUESTION_BANK_SOURCES.length, 13);
   assert.equal(QUESTION_BANK_2018_2022_STATS.sourceQuestionCount, 2538);
-  assert.equal(QUESTION_BANK_2018_2022_STATS.builtBeforeDedup, 2526);
-  assert.equal(QUESTION_BANK_2018_2022_STATS.addedQuestionCount, 2506);
-  assert.equal(QUESTION_BANK_2018_2022_STATS.removedDuplicateCount, 20);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.builtBeforeDedup, 2524);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.addedQuestionCount, 2502);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.removedDuplicateCount, 21);
+  assert.equal(QUESTION_BANK_2018_2022_STATS.removedGroupCompanionCount, 1);
   assert.deepEqual(
     Object.fromEntries(Object.entries(QUESTION_BANK_2018_2022_STATS.perYear).map(([year, stats]) => [year, stats.answerConflicts])),
     { 2018: [], 2019: [], 2020: [], 2021: [], 2022: [] }
@@ -164,6 +166,21 @@ test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   assert.match(getQuestionById('2018-U0-157').explanation, /DIC。$/);
   assert.match(getQuestionById('2021-U2-053').explanation, /答案为D。/);
   assert.match(getQuestionById('2022-U2-093').explanation, /正确答案为B。/);
+  assert.equal(getQuestionById('2019-U4-043').stem, '下列哪项不是闭经与痛经的共同病机');
+  assert.match(getQuestionById('2019-U3-045').explanation, /太渊是肺经的原穴。$/);
+  assert.doesNotMatch(getQuestionById('2019-U3-045').explanation, /原7|訂/);
+  assert.equal(getQuestionById('2022-U4-010'), null, '原题 B-E 均为“待补充”的不完整题不应入库');
+  assert.equal(getQuestionById('2022-U4-040'), null, '原题 C-E 均为“待补充”的不完整题不应入库');
+  assert.equal(getQuestionById('2019-U3-128'), null, 'B1 重复题所在题组的同组题不应被单独保留');
+
+  const prohibitedOcrContent = /原文件未提供解析|[•●▪〖〗]|·209|原7|訂|www\.|\.com|anbiji|yidianbiji|苟有恒|最无益|丿L|待补充/;
+  for (const question of importedPdfQuestions) {
+    const content = [question.stem, question.explanation, ...Object.values(question.options)].join('\n');
+    assert.doesNotMatch(content, prohibitedOcrContent, `${question.id} 仍含 OCR 污染或源文件占位文字`);
+  }
+  const aiExplanations = importedPdfQuestions.filter(question => question.explanation.includes('由AI查询'));
+  assert.equal(aiExplanations.length, 22);
+  assert.ok(aiExplanations.every(question => question.explanation.endsWith('（由AI查询）')));
 
   const groups = new Map();
   for (const question of QUESTIONS.filter(item => item.groupId)) {

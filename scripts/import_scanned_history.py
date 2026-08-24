@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OCR_ROOT = ROOT / "tmp" / "pdf-ocr-final2"
 HIGHRES_OCR_ROOT = ROOT / "tmp" / "pdf-ocr-highres"
+PADDLE_OCR_ROOT = ROOT / "tmp" / "pdf-ocr-paddle-v6"
 LETTERS = "ABCDE"
 OPTION_RE = re.compile(r"^([A-Fa-f])[.．、,，:：]\s*(.*)$")
 NUMBER_RE = re.compile(r"^[（(]?([1-9]\d{0,2})[.．、,，]\s*(.*)$")
@@ -62,6 +63,7 @@ OPTION_REPAIRS = {
     (2019, 80): {"A": "心、脾", "B": "肺、肾", "C": "肺、肝", "D": "心、肾", "E": "肝、胃"},
     (2019, 187): {"A": "木", "B": "火", "C": "土", "D": "金", "E": "水"},
     (2019, 305): {"A": "心、肺", "B": "肺、肾", "C": "心、肾", "D": "脾、肾", "E": "肺、脾"},
+    (2019, 311): {"A": "活血化瘀，涤痰镇静", "B": "安神定志，祛痰降火", "C": "降火豁痰，安神宁心", "D": "镇心涤痰，泻肝清火", "E": "滋阴降火，安神定志"},
     (2019, 328): {"A": "心", "B": "肝", "C": "肺", "D": "脾", "E": "肾"},
     (2019, 336): {"A": "肺、脾", "B": "心、肾", "C": "肺、肾", "D": "脾、肾", "E": "心、肺"},
     (2019, 337): {"A": "心、肾", "B": "心、肺", "C": "肺、肾", "D": "脾、肾", "E": "肝、肾"},
@@ -104,6 +106,8 @@ OPTION_REPAIRS = {
     (2022, 463): {"A": "肝", "B": "心", "C": "胃", "D": "肺", "E": "肾"},
     (2022, 481): {"A": "内痔", "B": "息肉痔", "C": "锁肛痔", "D": "脱肛", "E": "肛裂"},
     (2022, 513): {"A": "蕲蛇", "B": "川乌", "C": "秦艽", "D": "防己", "E": "威灵仙"},
+    (2022, 591): {"A": "肺部听诊两肺呼吸音粗糙", "B": "喘息气促，喉间哮鸣音，胸闷咳嗽", "C": "以咳嗽、咯痰为主症", "D": "发热，咳嗽，痰壅，气喘", "E": "反复发作，发作时喘促气急、喉间哮鸣、呼吸困难、张口抬肩、摇身撷肚"},
+    (2018, 107): {"A": "胃", "B": "小肠", "C": "大肠", "D": "膀胱", "E": "三焦"},
 }
 
 # These prompts were read directly from the rendered source pages after OCR
@@ -170,12 +174,46 @@ ANSWER_REPAIRS = {
 ANSWER_EXPLANATION_REPAIRS = {
     (2020, 107): "湿性趋下，重浊黏腻，易袭阴位，多伤及人体下部。",
     (2020, 505): "流行性乙型脑炎患者出现瞳孔不等大、呼吸不规则，提示颅内压增高、出现脑疝，应立即应用20%甘露醇快速静脉滴注，降低颅内压。",
+    (2022, 595): "一期梅毒主要表现为疳疮（硬下疳），通常发生于不洁性交后2～4周，本题以3周左右为代表，故选B。",
+    (2022, 596): "二期梅毒的杨梅疮通常在感染后7～10周出现，本题以8周左右为代表，故选D。",
+}
+
+# The paired source PDFs contain no usable explanation for these questions.
+# Answers were checked against official health guidance or university teaching
+# materials before the concise review notes below were written.  The marker is
+# intentionally visible to learners so source OCR and AI-supplemented content
+# are never confused.
+AI_EXPLANATION_REPAIRS = {
+    (2019, 16): "慢性乙型肝炎普通干扰素治疗通常需较长疗程，历史题库按至少1年掌握；聚乙二醇干扰素常用疗程为48周，因此本题选D。需要结合现行指南和患者应答情况个体化处理。（由AI查询）",
+    (2019, 30): "婴儿胃容量小、服药困难，中药汤剂宜适当浓缩并少量多次服用；1岁以内每剂通常煎取60～100mL，故选E。（由AI查询）",
+    (2019, 33): "猩红热病初可见舌苔白、舌乳头红肿并突出，外观如草莓，称草莓舌；随后白苔脱落可呈杨梅舌，故选C。（由AI查询）",
+    (2019, 83): "气的防御作用表现为护卫肌表、抵御外邪。患者素体气虚而易受外邪，且咳嗽无力、肢倦，核心是卫外功能减退，故选C。（由AI查询）",
+    (2019, 85): "火邪性炎上、易扰心神并伤津，常见高热、心烦失眠、狂躁、口燥咽干、便秘尿赤等表现，与题干一致，故选D。（由AI查询）",
+    (2019, 168): "肾综合征出血热发热期的典型“三痛”为头痛、腰痛、眼眶痛，故选D；全身酸痛可以出现，但不属于这一固定组合。（由AI查询）",
+    (2019, 177): "点刺舌是舌乳头增生、肿胀并突起的表现，多提示脏腑热盛或血分热盛；其余选项分别更多反映筋脉、气血亏虚或风痰等变化，故选C。（由AI查询）",
+    (2019, 202): "医院感染强调在医院内获得的感染。创伤或非生物性因子刺激所致炎症不属于感染；其余各项均属于医院感染定义所涵盖的情形，故选B。（由AI查询）",
+    (2019, 262): "题干有慢性肝病表现、肝脾受累且ALT持续明显升高，按该历史试题使用的旧分类符合慢性活动性肝炎，故选B。现行临床通常改按病因、炎症活动度和纤维化程度评估。（由AI查询）",
+    (2019, 263): "患者有瘙痒、粪色变浅和梗阻性黄疸表现，但影像学未见结石、肿瘤或肝外胆管扩张，提示肝内胆汁淤积，按历史题目分类选淤胆型肝炎D。（由AI查询）",
+    (2019, 265): "霍乱潜伏期按5日掌握。密切接触者应接受检疫或医学观察，并依规定进行预防性处置；题目组合中以严格检疫5天并给予预防性服药最完整，故选C。（由AI查询）",
+    (2019, 268): "叠氮脱氧胸苷即齐多夫定（AZT），属于核苷类逆转录酶抑制剂，可抑制HIV逆转录过程，故选B；其余药物不是该题所问的直接抗HIV药物。（由AI查询）",
+    (2019, 269): "HIV主要经血液、性接触和母婴传播，不需要饮食或呼吸道隔离；应落实标准预防，对血液、体液、排泄物及受污染器械规范管理和消毒，故本题选D。（由AI查询）",
+    (2019, 311): "狂证日久火盛耗伤阴液，可见狂躁渐减而烦躁、失眠等阴伤表现，治宜滋阴降火、安神定志，故选E。（由AI查询）",
+    (2019, 435): "痉证邪壅经络多由风寒湿邪阻滞，筋脉失养而拘急，治宜祛风散寒、燥湿和营，代表方为羌活胜湿汤，故选A。（由AI查询）",
+    (2019, 436): "肝经热盛可热极生风，出现高热、抽搐、项强等，治宜清肝潜阳、息风镇痉，代表方为羚角钩藤汤，故选D。（由AI查询）",
+    (2022, 193): "原卷只写“爬山后出现心悸，引起休克”，缺少休克类型，题干信息本身不完整；按原卷答案A所考知识点，肾上腺素是过敏性休克首选药。复习时不应把所有爬山后休克都等同于过敏性休克。（由AI查询）",
+    (2022, 311): "雷火灸以艾绒和药物制成雷火灸条，点燃后利用灸条的热力和药力施灸，分类上属于艾条灸，故选A。（由AI查询）",
+    (2022, 321): "肩髎是手少阳三焦经腧穴；肩井属足少阳胆经，内关属手厥阴心包经，通里属手少阴心经，公孙属足太阴脾经，故选A。（由AI查询）",
+    (2022, 339): "眩晕耳鸣、头目胀痛、急躁易怒、口苦、舌红苔黄、脉弦数符合肝阳上亢、风火上扰，治宜平肝潜阳、清热息风，首选天麻钩藤饮，故选A。（由AI查询）",
+    (2022, 345): "支正为手太阳小肠经络穴，传统主治除肘臂痛、头项强痛外还包括疣证，因此本题选E。（由AI查询）",
+    (2022, 464): "缺铁性贫血时体内贮存铁耗竭，血清铁和铁蛋白降低，总铁结合力升高，转铁蛋白饱和度下降；应按题目中符合这一组合的B项作答。（由AI查询）",
 }
 
 # The supplied 2022 question page prints only A-D for question 75. It is kept
 # out of the bank rather than inventing an E option.
 SOURCE_EXCLUSIONS = {
     (2022, 75): "原题页仅有A-D四个选项，结构不完整",
+    (2022, 460): "原题页B-E均印为“待补充”，结构不完整",
+    (2022, 490): "原题页C-E均印为“待补充”，结构不完整",
     (2022, 509): "原题页只印有选项，缺少题号和题干",
     (2022, 514): "原题页只印有选项，缺少题号和题干",
 }
@@ -185,18 +223,38 @@ def sanitize_source_text(text: str) -> str:
     """Remove OCR fragments from recurring page headers, footers and watermarks."""
     if not text:
         return ""
+    replacements = {
+        "女于": "女子", "灭瞒": "灭螨", "艾灶灸": "艾炷灸", "疲痕灸": "瘢痕灸",
+        "面色胱白": "面色㿠白", "濂疮": "臁疮", "湿锣音": "湿啰音",
+        "瘢疮(硬下疳)": "疳疮（硬下疳）", "常发:生于": "常发生于",
+        "疗是指发生在肌肤浅表": "疔是指发生在肌肤浅表", "红丝疗": "红丝疔",
+        "mmo1": "mmol", "mmoI": "mmol", "μmo1": "μmol", "μmI": "μmol",
+        "Pa02": "PaO2", "PaC02": "PaCO2", "C02": "CO2", "62G/L": "62g/L",
+        "脉搏短点细": "脉搏短绌", "收缩庄": "收缩压", "肢体活功": "肢体活动",
+        "阵发性刀割样疼痈": "阵发性刀割样疼痛", "颧膠": "颧髎",
+    }
+    for wrong, correct in replacements.items():
+        text = text.replace(wrong, correct)
+    text = re.sub(r"[【〖]?\s*第[一二三四]单元\s*$", "", text).rstrip()
+    # The scanned books repeatedly overlay yidianbiji/anbiji watermarks in the
+    # middle or at the end of otherwise valid lines.  Remove the token itself;
+    # when it is preceded by a standalone source-question anchor, remove that
+    # anchor as well.  Do not blanket-strip all trailing numbers because doses,
+    # ratios, years and laboratory values are legitimate exam content.
+    watermark = r"(?:www\.?[a-z]{2,12}|(?:yidi|anbiji)\.com|anbiji|nbiji\.com|一点(?:笔记)?|万题(?:宝|之考真)?|何必)"
+    text = re.sub(rf"(?:[。；;，,：:]?\d{{1,3}}[.．、·])?\s*{watermark}", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?:笔记】|毛址】|网址】)", "", text)
     patterns = (
         r"[<〈,，]?第[^>〉,，。]{0,8}页[>〉冫)]?",
         r"三更眠五更起",
         r"日曝十日寒",
         r"荀有悵",
+        r"苟有恒",
+        r"秃到秃头",
         r"最兄羔",
+        r"最无益[，,]莫过一",
         r"英过一",
-        r"何必",
-        r"万题(?:宝|之考真)?",
         r"万宝",
-        r"一点笔记",
-        r"www\.?yidianbiji",
         r"真20(?:18|19|20|21|22)",
         r"·20(?:18|19|20|21|22|2|精|全)",
     )
@@ -205,7 +263,14 @@ def sanitize_source_text(text: str) -> str:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             earliest = min(earliest, match.start())
-    return text[:earliest].strip(" .．、,，;；:：·-—<〈>〉冫")
+    text = text[:earliest].strip(" .．、,，;；:：·-—<〈>〉冫")
+    text = re.sub(r"(?:[A-Za-z0-9íÍ]{0,16}\.)?com\b.*$", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"w{1,3}\.?yid\w*.*$", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"(?:nDILcon|nbilLcom|JIjL\.com).*$", "", text, flags=re.IGNORECASE)
+    # Page/question anchors sometimes remain after a removed terminal
+    # watermark.  They are safe to remove only after a completed sentence.
+    text = re.sub(r"(?<=[。！？])\s*\d{1,3}[.．、·]?\s*$", "", text)
+    return text
 
 
 def restore_explanation_punctuation(text: str) -> str:
@@ -214,6 +279,83 @@ def restore_explanation_punctuation(text: str) -> str:
         return ""
     text = re.sub(r"I\)[Oo](?=$|[^A-Za-z])", "D。", text)
     return re.sub(r"(?<=[A-E])[Oo](?=$|[^A-Za-z])", "。", text)
+
+
+def strip_question_anchor(text: str, current_number: int, next_number: int | None) -> str:
+    """Remove a merged current/next question block without harming real numbers."""
+    if not text:
+        return ""
+    text = re.sub(r"^\s*[oOdD]?\d{1,3}[.．、]\s*[【〖]?解析[】〗]?", "", text)
+    anchors = {current_number}
+    if next_number is not None:
+        anchors.add(next_number)
+    for number in sorted(anchors):
+        pattern = re.compile(rf"(?<!\d)[oOdD]?{number}[.．、](?=\s*(?:[【〖](?:解析)?|[\u3400-\u9fff]))")
+        match = pattern.search(text)
+        if match and match.start() > 0:
+            text = text[:match.start()]
+    text = re.sub(r"(?:\d{1,3}[.．、]?)?(?:(?:bij[ií]?|idi)\.com|\d{1,3}\.com|idi\d{1,3}\.www).*$", "", text, flags=re.IGNORECASE)
+    return text.strip(" .．、,，;；:：·-—<〈>〉冫oO")
+
+
+GROUP_MARKER_RE = re.compile(r"(?:〖|【|^|(?<=[。；;]))\s*([1-4])\s*(?:〗|】)")
+
+
+def clean_explanation_markup(text: str) -> str:
+    text = re.sub(r"[〖【]?解析[〗】]?", "", text or "")
+    text = re.sub(r"(?:〖|【)?\s*[1-4]\s*(?:〗|】)", "", text)
+    text = re.sub(r"\s+", "", text)
+    return text.strip("。；;，,：:")
+
+
+def split_group_explanation(text: str, count: int) -> list[str]:
+    """Split a combined B1/A3 source explanation into per-question text."""
+    matches = list(GROUP_MARKER_RE.finditer(text or ""))
+    by_index: dict[int, str] = {}
+    for position, match in enumerate(matches):
+        index = int(match.group(1)) - 1
+        if not 0 <= index < count:
+            continue
+        end = matches[position + 1].start() if position + 1 < len(matches) else len(text)
+        value = clean_explanation_markup(text[match.end():end])
+        if value:
+            by_index[index] = value
+    return [by_index.get(index, "") for index in range(count)]
+
+
+def focused_group_explanation(text: str, question: dict) -> str:
+    """Choose the source sentence most relevant to one member of a group."""
+    cleaned = clean_explanation_markup(text)
+    sentences = [part.strip() for part in re.split(r"(?<=[。；;])", cleaned) if part.strip()]
+    answer_text = question.get("options", {}).get(question.get("answer"), "")
+    if answer_text:
+        matched = [sentence for sentence in sentences if answer_text in sentence]
+        if matched:
+            return "".join(matched).strip("。；;")
+    return cleaned
+
+
+def distribute_group_explanations(questions: list[dict]) -> None:
+    groups: dict[str, list[dict]] = {}
+    for question in questions:
+        if question.get("groupId"):
+            groups.setdefault(question["groupId"], []).append(question)
+    for members in groups.values():
+        members.sort(key=lambda item: item["number"])
+        sources = [item["explanation"] for item in members if item["explanation"] != "原文件未提供解析。"]
+        if not sources:
+            continue
+        unique_sources = set(sources)
+        if len(unique_sources) > 1 and not any(len(list(GROUP_MARKER_RE.finditer(source))) >= len(members) for source in unique_sources):
+            # Distinct, already-specific manual/AI explanations must not be
+            # replaced by another member's text.
+            continue
+        source = max(sources, key=len)
+        split = split_group_explanation(source, len(members))
+        for index, member in enumerate(members):
+            replacement = split[index] or focused_group_explanation(source, member)
+            if replacement:
+                member["explanation"] = replacement.rstrip("。") + "。"
 
 
 def clean_line(text: str) -> str:
@@ -711,6 +853,10 @@ def fused_answer_map(year: int, low_answers: list[dict], high_answers: list[dict
         if not explanation:
             explanation = (low or {}).get("explanation") or (high or {}).get("explanation") or ""
         explanation = restore_explanation_punctuation(sanitize_source_text(explanation))
+        anchor_number = global_number if EXPECTED[year]["global"] else local_number
+        explanation = strip_question_anchor(explanation, anchor_number, anchor_number + 1)
+        if not explanation:
+            explanation = AI_EXPLANATION_REPAIRS.get((year, global_number), "")
         result[global_number] = {"answer": answer, "explanation": explanation or "原文件未提供解析。"}
     return result, conflicts
 
@@ -718,24 +864,28 @@ def fused_answer_map(year: int, low_answers: list[dict], high_answers: list[dict
 def build_year(year: int):
     low = source_snapshot(year, ROOT / "tmp" / "pdf-ocr-final2")
     high = source_snapshot(year, HIGHRES_OCR_ROOT)
-    answers, answer_conflicts = fused_answer_map(year, low[0], high[0])
-    low_sets, high_sets = low[2], high[2]
+    paddle = source_snapshot(year, PADDLE_OCR_ROOT)
+    answers, answer_conflicts = fused_answer_map(year, paddle[0], low[0])
+    low_sets, high_sets, paddle_sets = low[2], high[2], paddle[2]
     questions = []
     excluded = []
     ocr_disagreements = []
     shared_stems = {}
 
-    for (spec, low_item), (_, high_item) in zip(low_sets, high_sets):
+    for (spec, low_item), (_, high_item), (_, paddle_item) in zip(low_sets, high_sets, paddle_sets):
         repair = OPTION_REPAIRS.get((year, spec.first_global))
         low_options = low_item.normalized_options() if low_item else {}
         high_options = high_item.normalized_options() if high_item else {}
+        paddle_options = paddle_item.normalized_options() if paddle_item else {}
         options = {}
         for letter in LETTERS:
             if repair:
                 options[letter] = repair[letter]
                 continue
-            value, ratio = choose_text(low_options.get(letter, ""), high_options.get(letter, ""))
-            options[letter] = value
+            value, ratio = choose_text(paddle_options.get(letter, ""), low_options.get(letter, "") or high_options.get(letter, ""))
+            option_anchor = spec.first_global if EXPECTED[year]["global"] else spec.first_local
+            option_next = spec.global_numbers[-1] + 1 if EXPECTED[year]["global"] else spec.question_numbers[-1] + 1
+            options[letter] = strip_question_anchor(value, option_anchor, option_next)
             if ratio is not None and ratio < 0.72:
                 ocr_disagreements.append({"globalNumber": spec.first_global, "field": f"option-{letter}", "ratio": round(ratio, 3)})
 
@@ -746,20 +896,23 @@ def build_year(year: int):
 
         low_prompt = prompt_from_context(year, spec, low_item)
         high_prompt = prompt_from_context(year, spec, high_item)
-        prompt, prompt_ratio = choose_text(low_prompt, high_prompt)
+        paddle_prompt = prompt_from_context(year, spec, paddle_item)
+        prompt, prompt_ratio = choose_text(paddle_prompt, low_prompt or high_prompt)
         if prompt_ratio is not None and prompt_ratio < 0.65:
             ocr_disagreements.append({"globalNumber": spec.first_global, "field": "prompt", "ratio": round(prompt_ratio, 3)})
 
         if spec.type == "A3" and spec.group_id not in shared_stems:
             low_shared = shared_stem_from_context(year, spec, low_item)
             high_shared = shared_stem_from_context(year, spec, high_item)
+            paddle_shared = shared_stem_from_context(year, spec, paddle_item)
             shared_stems[spec.group_id] = SHARED_STEM_REPAIRS.get(
                 spec.group_id,
-                choose_text(low_shared, high_shared)[0],
+                choose_text(paddle_shared, low_shared or high_shared)[0],
             )
 
         low_b1 = b1_prompts(year, spec, low_item) if spec.type == "B1" else {}
         high_b1 = b1_prompts(year, spec, high_item) if spec.type == "B1" else {}
+        paddle_b1 = b1_prompts(year, spec, paddle_item) if spec.type == "B1" else {}
 
         for offset, (local_number, global_number) in enumerate(zip(spec.question_numbers, spec.global_numbers)):
             exclusion = SOURCE_EXCLUSIONS.get((year, global_number))
@@ -767,11 +920,13 @@ def build_year(year: int):
                 excluded.append({"globalNumber": global_number, "reason": exclusion})
                 continue
             if spec.type == "B1":
-                prompt = choose_text(low_b1.get(local_number, ""), high_b1.get(local_number, ""))[0]
+                prompt = choose_text(paddle_b1.get(local_number, ""), low_b1.get(local_number, "") or high_b1.get(local_number, ""))[0]
             elif offset:
                 # A3 has one option set per question, so this branch is normally unused.
                 prompt = prompt_from_context(year, spec, low_item) or prompt_from_context(year, spec, high_item)
             prompt = PROMPT_REPAIRS.get((year, global_number), prompt)
+            prompt_anchor = global_number if EXPECTED[year]["global"] else local_number
+            prompt = strip_question_anchor(prompt, prompt_anchor, prompt_anchor + 1)
             if not prompt:
                 excluded.append({"globalNumber": global_number, "reason": "题干无法可靠识别"})
                 continue
@@ -821,6 +976,11 @@ def build_year(year: int):
                 )
             questions.append(question)
 
+    distribute_group_explanations(questions)
+    for question in questions:
+        question["explanation"] = restore_explanation_punctuation(
+            sanitize_source_text(question["explanation"])
+        )
     return questions, {
         "sourceQuestionCount": len(expected_sequence(year)),
         "builtQuestionCount": len(questions),
@@ -853,20 +1013,43 @@ def build_output(output: Path) -> dict:
     generated_by_year = {}
     per_year = {}
     removed_duplicates = []
+    removed_group_companions = []
     for year in range(2018, 2023):
         questions, stats = build_year(year)
         added = []
+        blocks: dict[str, list[dict]] = {}
         for question in questions:
-            key = normalized_question_key(question)
-            duplicate_of = seen.get(key)
-            if duplicate_of:
-                removed_duplicates.append({"id": question["id"], "duplicateOf": duplicate_of})
+            blocks.setdefault(question.get("groupId") or question["id"], []).append(question)
+        for block in blocks.values():
+            duplicate_members = []
+            for question in block:
+                duplicate_of = seen.get(normalized_question_key(question))
+                if duplicate_of:
+                    duplicate_members.append((question, duplicate_of))
+            if duplicate_members:
+                duplicate_ids = {question["id"] for question, _ in duplicate_members}
+                removed_duplicates.extend(
+                    {"id": question["id"], "duplicateOf": duplicate_of}
+                    for question, duplicate_of in duplicate_members
+                )
+                trigger = duplicate_members[0][0]["id"]
+                removed_group_companions.extend(
+                    {"id": question["id"], "groupId": question.get("groupId"), "removedWith": trigger}
+                    for question in block
+                    if question["id"] not in duplicate_ids
+                )
                 continue
-            seen[key] = question["id"]
-            added.append(question)
-            combined.append(question)
+            for question in block:
+                seen[normalized_question_key(question)] = question["id"]
+                added.append(question)
+                combined.append(question)
         stats["addedAfterDedup"] = len(added)
-        stats["removedAsDuplicates"] = len(questions) - len(added)
+        stats["removedAsDuplicates"] = sum(
+            1 for item in removed_duplicates if item["id"].startswith(f"{year}-")
+        )
+        stats["removedAsGroupCompanions"] = sum(
+            1 for item in removed_group_companions if item["id"].startswith(f"{year}-")
+        )
         per_year[str(year)] = stats
         generated_by_year[year] = added
 
@@ -883,6 +1066,8 @@ def build_output(output: Path) -> dict:
         "addedQuestionCount": len(combined),
         "removedDuplicateCount": len(removed_duplicates),
         "removedDuplicates": removed_duplicates,
+        "removedGroupCompanionCount": len(removed_group_companions),
+        "removedGroupCompanions": removed_group_companions,
         "perYear": per_year,
     }
     imports = []

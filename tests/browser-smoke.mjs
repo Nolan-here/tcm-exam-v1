@@ -70,7 +70,7 @@ try {
   await page.getByRole('button', { name: '返回首页' }).click();
   await page.getByRole('button', { name: '复习模式' }).click();
   await page.getByRole('button', { name: '自定义数量' }).click();
-  await page.getByLabel('自定义题量，1 到 3496 题').fill('3496');
+  await page.getByLabel('自定义题量，1 到 3492 题').fill('3492');
   await page.getByRole('button', { name: '开始复习' }).click();
   await page.locator('.question-card').first().waitFor();
   const reviewTypePages = await page.evaluate(async () => {

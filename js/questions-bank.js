@@ -10,7 +10,7 @@ import {
   QUESTION_BANK_2018_2022_STATS
 } from './questions-2018-2022.js';
 
-export const QUESTION_BANK_VERSION = '2018-2024-pdf-docx-dedup-grouped-v3';
+export const QUESTION_BANK_VERSION = '2018-2024-pdf-docx-dedup-grouped-v4';
 export const QUESTION_BANK_SOURCES = [
   QUESTION_BANK_2024_SOURCE,
   ...QUESTION_BANK_2023_SOURCES,
@@ -22,6 +22,7 @@ export const QUESTION_BANK_STATS = {
   questions2023RemovedAsDuplicates: QUESTION_BANK_2023_STATS.removedDuplicateCount,
   questions2018To2022Added: QUESTIONS_2018_2022.length,
   questions2018To2022RemovedAsDuplicates: QUESTION_BANK_2018_2022_STATS.removedDuplicateCount,
+  questions2018To2022RemovedAsGroupCompanions: QUESTION_BANK_2018_2022_STATS.removedGroupCompanionCount,
   questions2018To2022ExcludedAsIncomplete:
     QUESTION_BANK_2018_2022_STATS.sourceQuestionCount
     - QUESTION_BANK_2018_2022_STATS.builtBeforeDedup
