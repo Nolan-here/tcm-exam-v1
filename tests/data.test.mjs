@@ -22,7 +22,7 @@ import { createSyncPayload, mergeSyncPayload } from '../js/sync.js';
 import { backupPayload, validateBackup } from '../js/db.js';
 
 test('2018 至 2024 年题库去重合并后的总数和四单元分配准确', () => {
-  assert.equal(QUESTION_BANK_VERSION, '2018-2024-pdf-docx-dedup-grouped-v4');
+  assert.equal(QUESTION_BANK_VERSION, '2018-2024-pdf-docx-dedup-grouped-v5');
   assert.equal(QUESTIONS.length, 3492);
   assert.deepEqual(EXAM_UNITS.map(item => item.count), [150, 150, 150, 150]);
   assert.deepEqual(QUESTION_BANK_STATS, {
@@ -172,15 +172,23 @@ test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   assert.equal(getQuestionById('2022-U4-010'), null, '原题 B-E 均为“待补充”的不完整题不应入库');
   assert.equal(getQuestionById('2022-U4-040'), null, '原题 C-E 均为“待补充”的不完整题不应入库');
   assert.equal(getQuestionById('2019-U3-128'), null, 'B1 重复题所在题组的同组题不应被单独保留');
+  assert.equal(getQuestionById('2021-U2-001').answer, 'C');
+  assert.match(getQuestionById('2021-U2-001').explanation, /抗Sm抗体.*特异性/);
+  assert.equal(getQuestionById('2021-U1-150').stem, '气机内阻，失于外达是指');
+  assert.equal(getQuestionById('2021-U3-135').options.E, '胃脘下俞、肺俞、脾俞、肾俞、太溪、三阴交、风池、曲池、血海');
+  assert.match(getQuestionById('2021-U4-045').options.E, /疼痛剧烈，易化脓腐烂$/);
+  assert.match(getQuestionById('2022-U3-081').explanation, /石淋.*清热利湿、排石通淋/);
+  assert.match(getQuestionById('2022-U3-107').explanation, /足厥阴肝经和督脉/);
 
-  const prohibitedOcrContent = /原文件未提供解析|[•●▪〖〗]|·209|原7|訂|www\.|\.com|anbiji|yidianbiji|苟有恒|最无益|丿L|待补充/;
+  const prohibitedOcrContent = /原文件未提供解析|[•●▪〖〗【】]|·209|原7|訂|www\.|\.com|anbiji|yidianbiji|苟有恒|最无益|丿L|待补充|A1\/A2型选择题/;
   for (const question of importedPdfQuestions) {
     const content = [question.stem, question.explanation, ...Object.values(question.options)].join('\n');
     assert.doesNotMatch(content, prohibitedOcrContent, `${question.id} 仍含 OCR 污染或源文件占位文字`);
   }
   const aiExplanations = importedPdfQuestions.filter(question => question.explanation.includes('由AI查询'));
-  assert.equal(aiExplanations.length, 22);
+  assert.equal(aiExplanations.length, 155);
   assert.ok(aiExplanations.every(question => question.explanation.endsWith('（由AI查询）')));
+  assert.equal(importedPdfQuestions.filter(question => /^(?:略|实记题|原文件未提供解析)[。]?$/.test(question.explanation)).length, 0);
 
   const groups = new Map();
   for (const question of QUESTIONS.filter(item => item.groupId)) {

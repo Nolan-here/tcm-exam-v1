@@ -10,9 +10,9 @@ const questions = module.QUESTIONS_2018_2022
   || [];
 
 const checks = [
-  ['missing-explanation', text => text === '原文件未提供解析。'],
-  ['watermark', text => /(?:yidianbiji|anbiji|一点笔记|万题|何必|历年考题卷|202[0-4]中医医考|www\.)/i.test(text)],
-  ['ocr-symbol', text => /[丿訂〖〗@&]|(?:^|[^A-Za-z])O(?:$|[^A-Za-z])/.test(text)],
+  ['missing-explanation', text => /^(?:原文件未提供解析。?|略。?|实记题。?|\d{1,3})$/.test(text)],
+  ['watermark', text => /(?:yidianbiji|anbiji|一点笔记|万题|何必|历年考题卷|202[0-4]中医医考|www[.-])/i.test(text)],
+  ['ocr-symbol', text => /[丿訂〖〗【】@&]|解析[】〗]|(?:^|[^A-Za-z])O(?:$|[^A-Za-z])/.test(text)],
   ['replacement-character', text => /[�□]/.test(text)],
   ['unit-footer', text => /[【〖]?\s*第[一二三四]单元\s*$/.test(text)],
   ['source-placeholder', text => /待补充/.test(text)],
