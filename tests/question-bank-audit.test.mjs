@@ -38,6 +38,7 @@ test('完整审计动态报告当前年份、题型和题组覆盖', () => {
   assert.equal(report.groups.byType.A3.questions, grouped.filter(question => question.type === 'A3').length);
   assert.equal(report.groups.byType.B1.questions, grouped.filter(question => question.type === 'B1').length);
   assert.equal(report.errorCount, 0);
+  assert.ok(!report.issues.some(issue => issue.id === '2021-U3-046' && issue.kind === 'ocr-symbol'));
 
   const expectedPlaceholders = QUESTIONS
     .filter(question => /^(?:原文件未提供解析。?|略。?|实记题。?|\d{1,3})$/.test(question.explanation.trim()))
@@ -62,6 +63,8 @@ test('内容警告能识别略、OCR 水印、域名和下一题题号', () => {
     { ...base, id: '2099-U1-002', number: 2, stem: '测试题二', explanation: '正常内容。3. 【一点笔记】。' },
     { ...base, id: '2099-U1-003', number: 3, stem: '测试题三', explanation: '正常内容。 iji.com。' },
     { ...base, id: '2099-U1-004', number: 4, stem: '测试题四', explanation: 'D略。【一点笔记】。' },
+    { ...base, id: '2099-U1-005', number: 5, stem: '测试题五', explanation: '霍乱O139血清型。' },
+    { ...base, id: '2099-U1-006', number: 6, stem: '测试题六', explanation: '正常内容 O 异常字符。' },
   ];
   const report = auditQuestionBank(sample);
   const kinds = new Set(report.issues.map(issue => issue.kind));
@@ -71,6 +74,8 @@ test('内容警告能识别略、OCR 水印、域名和下一题题号', () => {
   assert.ok(kinds.has('watermark'));
   assert.ok(kinds.has('ocr-symbol'));
   assert.ok(kinds.has('merged-question-anchor'));
+  assert.ok(!report.issues.some(issue => issue.id === '2099-U1-005' && issue.kind === 'ocr-symbol'));
+  assert.ok(report.issues.some(issue => issue.id === '2099-U1-006' && issue.kind === 'ocr-symbol'));
 });
 
 test('结构错误会失败而不会被降级为警告', () => {

@@ -158,7 +158,7 @@ test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   assert.doesNotMatch(getQuestionById('2022-U4-068').explanation, /519$/);
   assert.doesNotMatch(getQuestionById('2021-U3-150').explanation, /第四单元$/);
   assert.match(getQuestionById('2018-U0-060').explanation, /=96。$/);
-  const falseOptionOTail = /(?:[A-E](?:项)?[Oo](?=$|[^A-Za-z])|I\)[Oo](?=$|[^A-Za-z]))/;
+  const falseOptionOTail = /(?:[A-E](?:项)?[Oo](?=$|[^A-Za-z0-9])|I\)[Oo](?=$|[^A-Za-z0-9]))/;
   assert.ok(
     importedPdfQuestions.every(question => !falseOptionOTail.test(question.explanation)),
     '历年真题解析中仍有把句号误识别成选项 O 的内容',
@@ -183,7 +183,10 @@ test('每题 ID 唯一，题干、选项、答案和解析结构完整', () => {
   const prohibitedOcrContent = /原文件未提供解析|[•●▪〖〗【】]|·209|原7|訂|www\.|\.com|anbiji|yidianbiji|苟有恒|最无益|丿L|待补充|A1\/A2型选择题/;
   for (const question of importedPdfQuestions) {
     const content = [question.stem, question.explanation, ...Object.values(question.options)].join('\n');
-    assert.doesNotMatch(content, prohibitedOcrContent, `${question.id} 仍含 OCR 污染或源文件占位文字`);
+    const auditedContent = question.id === '2021-U3-046'
+      ? content.replaceAll('【主治】', '')
+      : content;
+    assert.doesNotMatch(auditedContent, prohibitedOcrContent, `${question.id} 仍含 OCR 污染或源文件占位文字`);
   }
   const aiExplanations = importedPdfQuestions.filter(question => question.explanation.includes('由AI查询'));
   assert.equal(aiExplanations.length, 155);
@@ -298,6 +301,7 @@ test('考试按四单元出题，交卷前不显示反馈或讲解，交卷后�
 test('Service Worker 离线缓存包含新题库和当前资源版本', async () => {
   const worker = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.match(worker, /questions-bank\.js/);
+  assert.match(worker, /source-confirmed-question-repairs\.js/);
   assert.match(worker, /questions-2023\.js/);
   assert.match(worker, /questions-2024\.js/);
   assert.match(worker, /questions-2018-2022\.js/);

@@ -9,6 +9,7 @@ import {
   QUESTION_BANK_2018_2022_SOURCES,
   QUESTION_BANK_2018_2022_STATS
 } from './questions-2018-2022.js';
+import { applySourceConfirmedQuestionRepairs } from './source-confirmed-question-repairs.js';
 
 export const QUESTION_BANK_VERSION = '2018-2024-pdf-docx-dedup-grouped-v5';
 export const QUESTION_BANK_SOURCES = [
@@ -27,7 +28,8 @@ export const QUESTION_BANK_STATS = {
     QUESTION_BANK_2018_2022_STATS.sourceQuestionCount
     - QUESTION_BANK_2018_2022_STATS.builtBeforeDedup
 };
-export const QUESTIONS = [...QUESTIONS_2024, ...QUESTIONS_2023, ...QUESTIONS_2018_2022];
+const UNCORRECTED_QUESTIONS = [...QUESTIONS_2024, ...QUESTIONS_2023, ...QUESTIONS_2018_2022];
+export const QUESTIONS = applySourceConfirmedQuestionRepairs(UNCORRECTED_QUESTIONS);
 
 const UNIT_NAMES = ['一', '二', '三', '四'];
 export const PAPER_FORMAT_VERSION = 'grouped-types-v1';

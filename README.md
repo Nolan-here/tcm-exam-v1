@@ -41,9 +41,12 @@ GitHub Pages 和当前 GitHub 仓库均为公开访问，任何获得网址的�
 ```powershell
 npm test
 npm run audit:bank
+npm run audit:quality
 ```
 
 `audit:bank` 默认读取应用正式汇总入口 `js/questions-bank.js` 的 `QUESTIONS` 导出，因此审计范围始终是当前应用实际加载的全部题目；新增年份或题目进入正式汇总入口后会自动纳入。报告动态列出实际题数、年份、题型、题组、结构错误和内容质量警告。结构错误会使命令失败，内容警告会保留问题题目供核对，但不会为了得到绿色结果而被过滤。
+
+`audit:quality` 同样动态读取正式 `QUESTIONS`，用于第一阶段全库质量候选扫描。它逐题检查题干、选项、解析、题组题干和共用选项，报告水印、题号、题型标签、异常空格、括号、疑似 OCR 字符、缺失解析和重复题答案正文冲突。结果只是待核对候选，不能据此自动修改医学内容；可使用 `--output tmp\full-bank-quality-audit\phase1-scan.json` 保存逐条 JSON 报告。
 
 2018—2022 扫描 PDF 的来源专项审计仍可单独执行：
 
@@ -56,6 +59,7 @@ npm run audit:history
 ## 题库导入
 
 - 网页总题库入口：`js/questions-bank.js`
+- 原始来源确认修复层：`js/source-confirmed-question-repairs.js`；只在正式汇总入口应用逐字段修复，并以修复前值断言防止底层题库变化后静默误改。
 - 2023 年题库：`js/questions-2023.js`
 - 2024 年题库：`js/questions-2024.js`
 - 2018—2022 年题库：`js/questions-2018-2022.js`

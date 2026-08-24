@@ -1,7 +1,8 @@
-const CACHE_NAME = 'tcm-exam-v1-20260824-20';
+const CACHE_NAME = 'tcm-exam-v1-20260824-21';
 const APP_SHELL = [
   './', './index.html', './styles.css?v=9', './manifest.webmanifest', './assets/icon.svg',
   './js/app.js?v=16', './js/db.js', './js/questions-bank.js',
+  './js/source-confirmed-question-repairs.js',
   './js/questions-2024.js', './js/questions-2023.js', './js/questions-2018-2022.js',
   './js/questions-2018.js', './js/questions-2019.js', './js/questions-2020.js',
   './js/questions-2021.js', './js/questions-2022.js'
