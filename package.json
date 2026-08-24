@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "audit:bank": "node scripts/audit-question-bank.mjs",
+    "audit:history": "node scripts/audit-question-bank.mjs js/questions-2018-2022.js",
     "build": "node scripts/generate-worker-assets.mjs && vite build && node scripts/prepare-sites-dist.mjs",
     "build:pages": "node scripts/prepare-github-pages.mjs",
     "pretest": "node scripts/generate-worker-assets.mjs",

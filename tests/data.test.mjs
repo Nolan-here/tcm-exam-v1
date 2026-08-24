@@ -21,7 +21,7 @@ import { QUESTION_BANK_2018_2022_STATS } from '../js/questions-2018-2022.js';
 import { createSyncPayload, mergeSyncPayload } from '../js/sync.js';
 import { backupPayload, validateBackup } from '../js/db.js';
 
-test('2018 至 2024 年题库去重合并后的总数和四单元分配准确', () => {
+test('当前题库版本的导入去重统计和四单元分配准确（版本专项）', () => {
   assert.equal(QUESTION_BANK_VERSION, '2018-2024-pdf-docx-dedup-grouped-v5');
   assert.equal(QUESTIONS.length, 3492);
   assert.deepEqual(EXAM_UNITS.map(item => item.count), [150, 150, 150, 150]);

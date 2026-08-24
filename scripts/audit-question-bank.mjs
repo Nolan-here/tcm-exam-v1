@@ -1,56 +1,31 @@
 #!/usr/bin/env node
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import { auditQuestionBank } from './question-bank-audit.mjs';
 
-const input = process.argv[2] || 'js/questions-2018-2022.js';
-const absolute = path.resolve(input);
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const input = process.argv[2];
+const absolute = input
+  ? path.resolve(input)
+  : path.join(projectRoot, 'js', 'questions-bank.js');
 const module = await import(`${pathToFileURL(absolute).href}?audit=${Date.now()}`);
-const questions = module.QUESTIONS_2018_2022
-  || Object.entries(module).find(([name, value]) => /^QUESTIONS_/.test(name) && Array.isArray(value))?.[1]
-  || [];
 
-const checks = [
-  ['missing-explanation', text => /^(?:原文件未提供解析。?|略。?|实记题。?|\d{1,3})$/.test(text)],
-  ['watermark', text => /(?:yidianbiji|anbiji|一点笔记|万题|何必|历年考题卷|202[0-4]中医医考|www[.-])/i.test(text)],
-  ['ocr-symbol', text => /[丿訂〖〗【】@&]|解析[】〗]|(?:^|[^A-Za-z])O(?:$|[^A-Za-z])/.test(text)],
-  ['replacement-character', text => /[�□]/.test(text)],
-  ['unit-footer', text => /[【〖]?\s*第[一二三四]单元\s*$/.test(text)],
-  ['source-placeholder', text => /待补充/.test(text)],
-];
-
-const issues = [];
-for (const question of questions) {
-  const year = Number(question.id.slice(0, 4));
-  const sourceNumber = year === 2018 || year === 2021
-    ? question.number
-    : (question.unit - 1) * 150 + question.number;
-  const nextSourceNumber = year === 2021
-    ? question.number < [150, 150, 150, 126][question.unit - 1]
-      ? question.number + 1
-      : question.unit < 4 ? 1 : null
-    : sourceNumber < (year === 2018 ? 162 : 600) ? sourceNumber + 1 : null;
-  const suspiciousNumbers = [sourceNumber, nextSourceNumber].filter(Number.isInteger).join('|');
-  const mergedQuestion = suspiciousNumbers
-    ? new RegExp(`(?:[·•]\\s*(?:${suspiciousNumbers})(?=\\s*[（(]|$)|(?:^|[^\\d])(?:${suspiciousNumbers})[.．、]\\s*(?:[【〖]?解析|患者|患儿|下列|上述|治疗|诊断|某|女性|男性))`)
-    : null;
-  const trailingAnchor = nextSourceNumber === null
-    ? null
-    : new RegExp(`(?:[·。；;，,]|\\s)${nextSourceNumber}(?:[IL])?\\s*$`, 'i');
-  const fields = [
-    ['stem', question.stem || ''],
-    ['explanation', question.explanation || ''],
-    ...Object.entries(question.options || {}).map(([letter, value]) => [`option-${letter}`, value || '']),
-  ];
-  for (const [field, text] of fields) {
-    for (const [kind, matches] of checks) {
-      if (matches(text)) issues.push({ id: question.id, field, kind, text });
-    }
-    if (mergedQuestion?.test(text)) issues.push({ id: question.id, field, kind: 'merged-question-anchor', text });
-    if (trailingAnchor?.test(text)) issues.push({ id: question.id, field, kind: 'trailing-next-question-anchor', text });
+let exportName = null;
+let questions = null;
+if (Array.isArray(module.QUESTIONS)) {
+  exportName = 'QUESTIONS';
+  questions = module.QUESTIONS;
+} else {
+  const candidates = Object.entries(module).filter(([name, value]) => /^QUESTIONS_/.test(name) && Array.isArray(value));
+  if (candidates.length === 1) {
+    [exportName, questions] = candidates[0];
+  } else if (candidates.length > 1) {
+    throw new Error(`题库模块存在多个候选导出，无法自动确定审计范围：${candidates.map(([name]) => name).join(', ')}`);
   }
 }
 
-const counts = Object.fromEntries(
-  [...new Set(issues.map(issue => issue.kind))].sort().map(kind => [kind, issues.filter(issue => issue.kind === kind).length]),
-);
-console.log(JSON.stringify({ input: absolute, questionCount: questions.length, counts, issues }, null, 2));
+if (!questions) throw new Error(`题库模块没有可识别的 QUESTIONS 或 QUESTIONS_* 数组导出：${absolute}`);
+
+const report = auditQuestionBank(questions, { source: absolute });
+console.log(JSON.stringify({ input: absolute, exportName, ...report }, null, 2));
+if (report.errorCount > 0) process.exitCode = 1;
