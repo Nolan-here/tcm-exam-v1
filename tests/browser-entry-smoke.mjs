@@ -80,7 +80,17 @@ async function runProfile(profile) {
     await expectVisible(page.getByRole('button', { name: '考试模式' }));
     await screenshot(page, profile, 'homepage-modes');
 
-    await page.getByRole('button', { name: '随机出题' }).click();
+    if (profile.name === 'desktop') {
+      await reviewSummary.focus();
+      await page.keyboard.press('Tab');
+      assert.equal(await page.locator('[data-open-review]').evaluate(element => document.activeElement === element), true);
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await reviewSummary.evaluate(element => document.activeElement === element), true);
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Enter');
+    } else {
+      await page.getByRole('button', { name: '随机出题' }).click();
+    }
     await page.getByRole('dialog').waitFor();
     await page.getByRole('button', { name: '10 题', exact: true }).click();
     await assertQuestionPage(page, '复习模式：随机出题');
