@@ -141,6 +141,16 @@
 
 ### 已自动验证
 
+2026-08-25 Windows 桌面三个首页入口共同失效修复已完成本地验证：
+
+- 真实 Chrome 151 与 Edge 151 的隔离环境证明当前代码在全新缓存下三条业务链本身正常；桌面 CSS 没有隐藏入口的分支，`subject-panel-focus.js` 不阻止默认事件，也不修改其他面板状态。三个入口分别创建复习或考试会话，但共同依赖 `js/app.js` 成功完成模块初始化、首页重绘和 document 级事件委托。
+- 对缺失 `js/subject-panel-focus.js` 的 PWA 缓存进行真实浏览器复现时，旧 `sw.js` 把失败的模块请求回退为 `index.html`。Chrome 和 Edge 均首先报告模块 MIME 类型为 `text/html`；随后 `js/app.js` 整体未执行，静态首页中的科目按钮为 0、随机题量对话框不打开、考试单元为 0，与 Windows 真人描述完全一致。
+- 同一旧 Worker 还会在每个 fetch 中删除所有非自身缓存；真实保留 Profile 从 `tcm-exam-v1-20260825-25` 升级时，新缓存会被旧 Worker 竞争删除。当前 `sw.js` 升级到 `tcm-exam-v1-20260825-26`：安装与激活均补全网页外壳，只在激活阶段清理旧缓存，接管后再次校验；只有导航请求允许回退首页，模块和样式请求不得收到 HTML。
+- Playwright 高层测试覆盖 Chrome、Edge 的 1366×768 桌面和 390×844 移动视口。随机复习、按科目和第一单元考试都实际进入第一题；11 个科目逐项通过 `display`、`visibility`、`opacity`、bounding box 和 Accessibility Tree 检查，单科首屏题目归属正确，控制台错误为 0。完整浏览器回归还覆盖复习反馈、A3/B1、考试题型锁定、持久化、交卷结果和离线重载。
+- `npm test` 为 55 项通过、0 项失败；`audit:subjects` 为 11 科、1001 题、0 error、2 个既有 warning；`audit:bank` 为 3492 题、0 error、28 warning；`audit:history` 为 2502 题、0 error、0 warning；`audit:quality` 为 647 条候选、457 道受影响题、5 道不可用解析和 1 组答案冲突候选。题库数据没有修改。
+- `npm run build` 与 `npm run build:pages` 均成功；本地 Pages 内容指纹缓存为 `tcm-exam-v1-pages-dd4afa968bd21789`。真实旧 Profile 无需清除站点数据，关闭并重新打开 Chrome、Edge 后均稳定使用新缓存并跑通三个入口。
+- 自动化检查包括 DOM、真实可见性、键盘 Enter/Space 和 Chromium Accessibility Tree，但不等于真人 NVDA、争渡或 VoiceOver 已通过；三种真人读屏仍需用户复测。WebKit 和 iPhone 真机未由本轮自动化控制，已知 iPhone Safari + VoiceOver 正常来自用户提供的真人测试事实。
+
 2026-08-25 科目列表焦点跟随修复已实际执行：
 
 - 根因由代码和运行结构确认：11 个按钮在应用初始化时已经插入 DOM，展开不会触发首页重绘；原生 `details/summary` 保持焦点在摘要，而上一版“选择科目”仅是不可聚焦普通 `div` 的 `aria-label`，也没有列表语义。

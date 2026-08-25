@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tcm-exam-v1-20260825-25';
+const CACHE_NAME = 'tcm-exam-v1-20260825-26';
 const APP_SHELL = [
   './', './index.html', './styles.css?v=10', './manifest.webmanifest', './assets/icon.svg',
   './js/app.js?v=19', './js/subject-panel-focus.js', './js/db.js', './js/questions-bank.js', './js/questions-subjects.js',
@@ -14,33 +14,53 @@ function deleteOldCaches() {
     .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))));
 }
 
+async function openCompleteAppShell() {
+  const cache = await caches.open(CACHE_NAME);
+  const missing = [];
+  for (const request of APP_SHELL) {
+    if (!await cache.match(request)) missing.push(request);
+  }
+  if (missing.length) await cache.addAll(missing);
+  return cache;
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
+    openCompleteAppShell()
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', event => {
   event.waitUntil(
-    deleteOldCaches()
+    openCompleteAppShell()
+      .then(() => deleteOldCaches())
       .then(() => self.clients.claim())
+      .then(() => openCompleteAppShell())
+      .then(() => deleteOldCaches())
   );
 });
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  event.waitUntil(deleteOldCaches());
+  const cachePromise = event.request.mode === 'navigate'
+    ? openCompleteAppShell()
+    : caches.open(CACHE_NAME);
   event.respondWith(
-    caches.open(CACHE_NAME).then(cache => (
+    cachePromise.then(cache => (
       cache.match(event.request).then(cached => cached || fetch(event.request).then(response => {
         if (response.ok && new URL(event.request.url).origin === self.location.origin) {
           const copy = response.clone();
           cache.put(event.request, copy);
         }
         return response;
-      }).catch(() => cache.match('./index.html')))
+      }).catch(async error => {
+        if (event.request.mode === 'navigate') {
+          const fallback = await cache.match('./index.html');
+          if (fallback) return fallback;
+        }
+        throw error;
+      }))
     ))
   );
 });

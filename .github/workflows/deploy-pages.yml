@@ -29,6 +29,22 @@ jobs:
         run: npm ci
       - name: 运行测试
         run: npm test
+      - name: 安装 Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: 启动本地测试服务器
+        run: npm start > /tmp/tcm-exam-server.log 2>&1 &
+      - name: 等待本地测试服务器
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:4173/; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/tcm-exam-server.log
+          exit 1
+      - name: 运行桌面与移动浏览器冒烟测试
+        run: npm run test:browser
       - name: 生成静态网页
         run: npm run build:pages
       - name: 配置 GitHub Pages

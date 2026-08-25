@@ -52,7 +52,7 @@ async function dispatchLifecycle(listener, event = {}) {
 test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', async () => {
   const workerSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   const currentCacheName = workerSource.match(/const CACHE_NAME = '([^']+)'/)?.[1];
-  assert.equal(currentCacheName, 'tcm-exam-v1-20260825-25');
+  assert.equal(currentCacheName, 'tcm-exam-v1-20260825-26');
   assert.notEqual(currentCacheName, 'tcm-exam-v1-20260825-22');
 
   const lifecycle = [];
@@ -84,21 +84,59 @@ test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', asyn
   assert.ok(currentCache.has(canonicalKey('./js/subject-panel-focus.js')));
   assert.ok(currentCache.has(canonicalKey('./js/authority-researched-explanation-backfills.js')));
 
+  await caches.delete(currentCacheName);
+  assert.equal(caches.stores.has(currentCacheName), false);
   await dispatchLifecycle(listeners.get('activate'));
   assert.equal(claimedClients, true);
   assert.deepEqual(await caches.keys(), [currentCacheName]);
+  const activatedCache = caches.stores.get(currentCacheName);
+  assert.ok(activatedCache.has(canonicalKey('./index.html')));
+  assert.ok(activatedCache.has(canonicalKey('./js/subject-panel-focus.js')));
   assert.ok(lifecycle.indexOf('delete:tcm-exam-v1-20260824-21') < lifecycle.indexOf('claim'));
 
   const resurrectedOldCache = await caches.open('tcm-exam-v1-20260824-21');
   await resurrectedOldCache.put('./js/questions-bank.js', { source: 'resurrected-old-cache' });
   let responsePromise;
-  let cleanupPromise;
   listeners.get('fetch')({
-    request: { method: 'GET', url: canonicalKey('./js/questions-bank.js') },
+    request: { method: 'GET', mode: 'cors', url: canonicalKey('./js/questions-bank.js') },
     respondWith: promise => { responsePromise = promise; },
-    waitUntil: promise => { cleanupPromise = promise; },
   });
   assert.equal((await responsePromise).source, 'new-cache');
-  await cleanupPromise;
-  assert.deepEqual(await caches.keys(), [currentCacheName]);
+  assert.deepEqual(await caches.keys(), [currentCacheName, 'tcm-exam-v1-20260824-21']);
+});
+
+test('离线时只允许导航请求回退首页，模块请求不得收到 HTML', async () => {
+  const workerSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  const lifecycle = [];
+  const caches = createCacheStorage(lifecycle);
+  const listeners = new Map();
+  const offlineError = new Error('offline');
+  const self = {
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    skipWaiting: () => {},
+    clients: { claim: () => {} },
+    location: { origin: new URL(scopeUrl).origin },
+  };
+  vm.runInNewContext(workerSource, {
+    self,
+    caches,
+    fetch: async () => { throw offlineError; },
+    URL,
+  });
+  await dispatchLifecycle(listeners.get('install'));
+
+  let moduleResponse;
+  listeners.get('fetch')({
+    request: { method: 'GET', mode: 'cors', url: canonicalKey('./js/not-cached.js') },
+    respondWith: promise => { moduleResponse = promise; },
+  });
+  await assert.rejects(moduleResponse, /offline/);
+
+  let navigationResponse;
+  listeners.get('fetch')({
+    request: { method: 'GET', mode: 'navigate', url: canonicalKey('./missing-route') },
+    respondWith: promise => { navigationResponse = promise; },
+  });
+  const response = await navigationResponse;
+  assert.equal(response.url, canonicalKey('./index.html'));
 });

@@ -45,7 +45,10 @@ npm test
 npm run audit:bank
 npm run audit:subjects
 npm run audit:quality
+npm run test:browser
 ```
+
+`test:browser` 使用 Playwright Chromium 在 1366×768 桌面视口和 390×844 移动视口运行首页高层冒烟测试，必须实际进入随机复习第一题、单科复习第一题和第一单元考试第一题，并检查 11 个科目的真实可见性与 Accessibility Tree。CI 会从 Playwright 官方来源安装所需 Chromium；本机也可通过 `BROWSER_EXECUTABLE` 指向已安装的 Chrome 或 Edge。`test:browser:full` 保留更完整的复习反馈、题组、考试流转、持久化和离线回归。
 
 `audit:bank` 默认读取应用正式汇总入口 `js/questions-bank.js` 的 `QUESTIONS` 导出，因此审计范围始终是当前应用实际加载的全部题目；新增年份或题目进入正式汇总入口后会自动纳入。报告动态列出实际题数、年份、题型、题组、结构错误和内容质量警告。结构错误会使命令失败，内容警告会保留问题题目供核对，但不会为了得到绿色结果而被过滤。
 
@@ -103,7 +106,7 @@ Word 导入脚本会读取正文、表格和浮动文本框；扫描 PDF 导入�
 
 - 学习数据保存在浏览器 IndexedDB 中，数据库名为 `tcm-exam-v1`。
 - 新旧会话以题库版本和试卷格式版本区分；旧记录会保留，但不会被误当成当前分组题库会话加载。连续作答产生的 IndexedDB 保存会按顺序执行，避免较早的写入覆盖题型锁定游标。
-- Service Worker 缓存网页外壳、年度综合题库和科目题库，可在首次成功加载后离线使用。GitHub Pages 构建会根据发布文件内容生成缓存指纹；题库或核心脚本变化后会建立新缓存、激活新 Worker 并淘汰旧缓存，用户无需手工清除站点数据。
+- Service Worker 缓存网页外壳、年度综合题库和科目题库，可在首次成功加载后离线使用。GitHub Pages 构建会根据发布文件内容生成缓存指纹；题库或核心脚本变化后会建立新缓存、激活新 Worker 并淘汰旧缓存。只有页面导航可以在断网时回退首页，脚本或样式请求不会错误收到 HTML；用户无需手工清除站点数据。
 - 当前简化界面不提供备份、恢复或联网同步入口，底层旧数据结构仍予保留。
 
 ## 键盘与读屏操作
