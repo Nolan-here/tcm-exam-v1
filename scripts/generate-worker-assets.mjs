@@ -32,6 +32,7 @@ const sourceFiles = [
   'js/questions-2022.js',
   'js/questions-bank.js',
   'js/source-confirmed-question-repairs.js',
+  'js/authority-researched-explanation-backfills.js',
   'js/questions.js',
   'js/sync.js',
 ];

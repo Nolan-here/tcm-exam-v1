@@ -302,6 +302,7 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   const worker = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.match(worker, /questions-bank\.js/);
   assert.match(worker, /source-confirmed-question-repairs\.js/);
+  assert.match(worker, /authority-researched-explanation-backfills\.js/);
   assert.match(worker, /questions-2023\.js/);
   assert.match(worker, /questions-2024\.js/);
   assert.match(worker, /questions-2018-2022\.js/);

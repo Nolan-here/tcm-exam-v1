@@ -1,4 +1,5 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,9 +22,32 @@ for (const directory of ['assets', 'js']) {
 
 await writeFile(path.join(outputRoot, '.nojekyll'), '', 'utf8');
 
+async function listPublishedFiles(directory, relativeDirectory = '') {
+  const entries = await readdir(path.join(directory, relativeDirectory), { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const relativePath = path.join(relativeDirectory, entry.name);
+    if (entry.isDirectory()) files.push(...await listPublishedFiles(directory, relativePath));
+    else files.push(relativePath);
+  }
+  return files;
+}
+
+const versionedFiles = (await listPublishedFiles(outputRoot))
+  .filter(relativePath => !['.nojekyll', 'sw.js'].includes(relativePath.replaceAll('\\', '/')))
+  .sort();
+const fingerprint = createHash('sha256');
+for (const relativePath of versionedFiles) {
+  fingerprint.update(relativePath.replaceAll('\\', '/'));
+  fingerprint.update('\0');
+  fingerprint.update(await readFile(path.join(outputRoot, relativePath)));
+  fingerprint.update('\0');
+}
+const pagesCacheName = `tcm-exam-v1-pages-${fingerprint.digest('hex').slice(0, 16)}`;
 const sourceSw = await readFile(path.join(outputRoot, 'sw.js'), 'utf8');
 const pagesSw = sourceSw
-  .replace("tcm-exam-v1-20260824-21", "tcm-exam-v1-pages-20260824-24");
+  .replace(/^const CACHE_NAME = '[^']+';/m, `const CACHE_NAME = '${pagesCacheName}';`);
+if (pagesSw === sourceSw) throw new Error('无法替换 GitHub Pages Service Worker 缓存名称');
 await writeFile(path.join(outputRoot, 'sw.js'), pagesSw, 'utf8');
 
-console.log(`GitHub Pages 静态文件已生成：${outputRoot}`);
+console.log(`GitHub Pages 静态文件已生成：${outputRoot}（缓存 ${pagesCacheName}）`);
