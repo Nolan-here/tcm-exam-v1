@@ -15,9 +15,15 @@ import {
   SUBJECTS,
   SUBJECT_QUESTIONS,
   SUBJECT_BANK_VERSION,
+  SUBJECT_BANK_COMPATIBLE_VERSIONS,
 } from './questions-subjects.js';
 
-export { SUBJECTS, SUBJECT_QUESTIONS, SUBJECT_BANK_VERSION };
+export {
+  SUBJECTS,
+  SUBJECT_QUESTIONS,
+  SUBJECT_BANK_VERSION,
+  SUBJECT_BANK_COMPATIBLE_VERSIONS,
+};
 
 export const QUESTION_BANK_VERSION = '2018-2024-pdf-docx-dedup-grouped-v5';
 export const QUESTION_BANK_SOURCES = [
@@ -77,6 +83,10 @@ export function getSubjectById(id) {
 
 export function getQuestionsForSubject(subjectId) {
   return SUBJECT_QUESTIONS.filter(question => question.subjectId === subjectId);
+}
+
+export function isSubjectBankVersionCompatible(version) {
+  return SUBJECT_BANK_COMPATIBLE_VERSIONS.includes(version);
 }
 
 export function getQuestionsForUnit(unit) {

@@ -7,6 +7,10 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import path from 'node:path';
+import {
+  getSubjectMetadata,
+  LEGACY_COMPATIBLE_SUBJECT_BANK_VERSIONS,
+} from './subject-metadata.mjs';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 const QUESTION_RE = /^\s*(\d+)[.、]\s*(.+)$/;
@@ -49,10 +53,14 @@ function parseChineseNumber(value) {
   return digits.get(value) ?? null;
 }
 
-export function subjectNameFromFile(filePath) {
+export function sourceNameFromFile(filePath) {
   const fileName = path.posix.basename(String(filePath).replaceAll('\\', '/'));
   const extension = path.extname(fileName);
   return path.basename(fileName, extension).trim();
+}
+
+export function subjectNameFromFile(filePath) {
+  return getSubjectMetadata(sourceNameFromFile(filePath)).subjectName;
 }
 
 function isIgnoredLine(line) {
@@ -131,11 +139,15 @@ function fullQuestionFingerprint(question) {
 
 export function parseSubjectText(text, {
   subjectName,
+  subjectId = null,
   sourceLabel = subjectName,
+  sourceName = subjectName,
+  sourceFileName = null,
+  order = null,
 } = {}) {
   if (!subjectName) throw new Error('缺少科目名称');
+  subjectId ||= stableSubjectId(subjectName);
   const lines = String(text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
-  const subjectId = stableSubjectId(subjectName);
   const parsed = [];
   const issues = [];
   let index = 0;
@@ -409,7 +421,14 @@ export function parseSubjectText(text, {
   const duplicates = [...fingerprints.values()].filter(ids => ids.length > 1);
 
   return {
-    subject: { id: subjectId, name: subjectName, count: questions.length },
+    subject: {
+      id: subjectId,
+      name: subjectName,
+      count: questions.length,
+      sourceName,
+      ...(sourceFileName ? { sourceFileName } : {}),
+      ...(Number.isInteger(order) ? { order } : {}),
+    },
     questions,
     parsedQuestionCount: parsed.length,
     invalidQuestionCount: parsed.length - structurallyValid.length,
@@ -453,6 +472,7 @@ function duplicateSummary(questions) {
 function generatedModule(subjects, questions, version) {
   return `// 本文件由 scripts/import-subject-txt.mjs 生成。请勿手工修改。\n`
     + `export const SUBJECT_BANK_VERSION = ${JSON.stringify(version)};\n`
+    + `export const SUBJECT_BANK_COMPATIBLE_VERSIONS = ${JSON.stringify([version, ...LEGACY_COMPATIBLE_SUBJECT_BANK_VERSIONS], null, 2)};\n`
     + `export const SUBJECTS = ${JSON.stringify(subjects, null, 2)};\n`
     + `export const SUBJECT_QUESTIONS = ${JSON.stringify(questions, null, 2)};\n`;
 }
@@ -464,17 +484,25 @@ export async function importSubjectDirectory(sourceDirectory, outputModule, outp
   const decoder = new TextDecoder('utf-8', { fatal: true });
 
   for (const filePath of textFiles) {
-    const subjectName = subjectNameFromFile(filePath);
+    const sourceName = sourceNameFromFile(filePath);
     try {
+      const metadata = getSubjectMetadata(sourceName);
       const buffer = await readFile(filePath);
       const text = decoder.decode(buffer);
-      results.push(parseSubjectText(text, { subjectName, sourceLabel: subjectName }));
+      results.push(parseSubjectText(text, {
+        subjectName: metadata.subjectName,
+        subjectId: metadata.subjectId,
+        sourceLabel: metadata.sourceFileName,
+        sourceName,
+        sourceFileName: metadata.sourceFileName,
+        order: metadata.order,
+      }));
     } catch (error) {
-      failures.push({ subject: subjectName, message: error.message });
+      failures.push({ sourceName, message: error.message });
     }
   }
 
-  results.sort((left, right) => compareText(left.subject.name, right.subject.name));
+  results.sort((left, right) => left.subject.order - right.subject.order);
   const duplicateNames = results
     .map(result => result.subject.name)
     .filter((name, index, names) => names.indexOf(name) !== index);
@@ -490,6 +518,8 @@ export async function importSubjectDirectory(sourceDirectory, outputModule, outp
   const excludedDuplicateQuestions = results.reduce((total, result) => total + result.excludedDuplicateCount, 0);
   const sourceDigest = createHash('sha256');
   for (const result of results) {
+    sourceDigest.update(result.subject.sourceName);
+    sourceDigest.update('\0');
     sourceDigest.update(result.subject.name);
     sourceDigest.update('\0');
     sourceDigest.update(JSON.stringify(result.questions));

@@ -14,6 +14,7 @@ import {
   createQuestionPages,
   getQuestionById,
   getSubjectById,
+  isSubjectBankVersionCompatible,
 } from './questions-bank.js';
 import { loadState, saveState, createSession } from './db.js';
 
@@ -91,7 +92,7 @@ function currentReview() {
   if (session.config?.paperFormatVersion !== PAPER_FORMAT_VERSION) return null;
   if (session.config?.source === 'subject') {
     const subject = getSubjectById(session.config.subjectId);
-    if (!subject || session.config.subjectBankVersion !== SUBJECT_BANK_VERSION) return null;
+    if (!subject || !isSubjectBankVersionCompatible(session.config.subjectBankVersion)) return null;
     if (!session.questionIds.every(questionId => getQuestionById(questionId)?.subjectId === subject.id)) return null;
   }
   if (!session.questionIds.every(questionId => getQuestionById(questionId))) return null;

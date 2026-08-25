@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "subjectBankVersion": "subject-txt-5c99dc87d7df90f3",
+  "subjectBankVersion": "subject-txt-3015a97d6e9a5bbb",
   "discoveredTextFiles": 11,
   "parsedFiles": 11,
   "failedFiles": 0,
@@ -15,65 +15,98 @@
   "subjects": [
     {
       "id": "subject-886e0290c4c6",
-      "name": "中医儿科学题",
-      "count": 86
+      "name": "中医儿科学",
+      "count": 86,
+      "sourceName": "中医儿科学题",
+      "sourceFileName": "中医儿科学题.txt",
+      "order": 1
     },
     {
       "id": "subject-f8eb0c1c1d57",
-      "name": "中医内科学题1",
-      "count": 76
+      "name": "中医内科学",
+      "count": 76,
+      "sourceName": "中医内科学题1",
+      "sourceFileName": "中医内科学题1 .txt",
+      "order": 2
     },
     {
       "id": "subject-437640b320ee",
-      "name": "中医基础理论题",
-      "count": 78
+      "name": "中医基础理论",
+      "count": 78,
+      "sourceName": "中医基础理论题",
+      "sourceFileName": "中医基础理论题.txt",
+      "order": 3
     },
     {
       "id": "subject-8fadaa1450e8",
-      "name": "中医外科学题",
-      "count": 85
+      "name": "中医外科学",
+      "count": 85,
+      "sourceName": "中医外科学题",
+      "sourceFileName": "中医外科学题.txt",
+      "order": 4
     },
     {
       "id": "subject-7d747b081087",
-      "name": "中医妇科学题",
-      "count": 115
+      "name": "中医妇科学",
+      "count": 115,
+      "sourceName": "中医妇科学题",
+      "sourceFileName": "中医妇科学题.txt",
+      "order": 5
     },
     {
       "id": "subject-2a05fbb70d6a",
-      "name": "中医诊断学题1",
-      "count": 82
+      "name": "中医诊断学",
+      "count": 82,
+      "sourceName": "中医诊断学题1",
+      "sourceFileName": "中医诊断学题1.txt",
+      "order": 6
     },
     {
       "id": "subject-c7ee53845f8b",
-      "name": "中药学题",
-      "count": 100
+      "name": "中药学",
+      "count": 100,
+      "sourceName": "中药学题",
+      "sourceFileName": "中药学题.txt",
+      "order": 7
     },
     {
       "id": "subject-04ce7c00ab3a",
-      "name": "方剂学提",
-      "count": 100
+      "name": "方剂学",
+      "count": 100,
+      "sourceName": "方剂学提",
+      "sourceFileName": "方剂学提.txt",
+      "order": 8
     },
     {
       "id": "subject-4aad384976f8",
-      "name": "西依诊断学题",
-      "count": 100
+      "name": "诊断学基础",
+      "count": 100,
+      "sourceName": "西依诊断学题",
+      "sourceFileName": "西依诊断学题.txt",
+      "order": 9
     },
     {
       "id": "subject-0ceb3f008cc1",
-      "name": "西医内科学题",
-      "count": 78
+      "name": "内科学",
+      "count": 78,
+      "sourceName": "西医内科学题",
+      "sourceFileName": "西医内科学题.txt",
+      "order": 10
     },
     {
       "id": "subject-6506ca413a14",
-      "name": "针灸学题",
-      "count": 101
+      "name": "针灸学",
+      "count": 101,
+      "sourceName": "针灸学题",
+      "sourceFileName": "针灸学题.txt",
+      "order": 11
     }
   ],
   "failures": [],
   "issues": [
     {
-      "subject": "针灸学题",
-      "source": "针灸学题",
+      "subject": "针灸学",
+      "source": "针灸学题.txt",
       "code": "group-range-mismatch",
       "message": "题组标题声明 101—103，实际题号为 102、103。",
       "lineNumber": 853
@@ -82,7 +115,7 @@
   "duplicates": {
     "excludedExactDuplicateBlocks": [
       {
-        "subject": "针灸学题",
+        "subject": "针灸学",
         "keptIds": [
           "SUB-6506ca413a14-0069",
           "SUB-6506ca413a14-0070"

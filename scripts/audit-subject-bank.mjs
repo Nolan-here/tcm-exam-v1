@@ -7,6 +7,7 @@ import {
   SUBJECT_QUESTIONS,
   SUBJECT_BANK_VERSION,
 } from '../js/questions-bank.js';
+import { SUBJECT_SOURCE_METADATA } from './subject-metadata.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const report = JSON.parse(await readFile(path.join(projectRoot, 'data/subject-bank-import-report.json'), 'utf8'));
@@ -26,13 +27,26 @@ if (report.subjectBankVersion !== SUBJECT_BANK_VERSION) errors.push('导入报�
 if (report.deployedQuestions !== SUBJECT_QUESTIONS.length) errors.push('导入报告与实际部署题数不一致');
 if (report.subjects.length !== SUBJECTS.length) errors.push('导入报告与实际科目数不一致');
 
-const expectedOrder = [...SUBJECTS].sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
-if (JSON.stringify(expectedOrder) !== JSON.stringify(SUBJECTS)) errors.push('科目列表不是确定性排序');
+const expectedOrder = SUBJECT_SOURCE_METADATA.map(subject => subject.subjectId);
+if (JSON.stringify(SUBJECTS.map(subject => subject.id)) !== JSON.stringify(expectedOrder)) {
+  errors.push('科目列表没有保持集中映射定义的确定性顺序');
+}
 
 const questionIds = new Set();
 for (const subject of SUBJECTS) {
+  const metadata = SUBJECT_SOURCE_METADATA.find(item => item.subjectId === subject.id);
+  if (!metadata
+    || subject.name !== metadata.subjectName
+    || subject.sourceName !== metadata.sourceName
+    || subject.sourceFileName !== metadata.sourceFileName
+    || subject.order !== metadata.order) {
+    errors.push(`${subject.id} 的原始文件、稳定 ID 与正式科目名称映射不一致`);
+  }
   if (!subject.name || /\.txt$/i.test(subject.name) || /[\\/]/.test(subject.name)) {
     errors.push(`科目名称含扩展名或路径：${subject.name}`);
+  }
+  if (SUBJECT_SOURCE_METADATA.some(item => item.sourceName === subject.name)) {
+    errors.push(`原始文件名噪声泄漏为显示名称：${subject.name}`);
   }
   const questions = SUBJECT_QUESTIONS.filter(question => question.subjectId === subject.id);
   if (questions.length !== subject.count) errors.push(`${subject.name} 的统计题数与实际题数不一致`);

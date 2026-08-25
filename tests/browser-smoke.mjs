@@ -32,8 +32,17 @@ try {
   await subjectSummary.focus();
   await page.keyboard.press('Enter');
   assert.equal(await subjectPanel.getAttribute('open'), '');
+  assert.equal(await subjectPanel.getAttribute('aria-busy'), null);
+  assert.equal(await subjectSummary.getAttribute('aria-describedby'), null);
+  assert.doesNotMatch(await subjectPanel.innerText(), /科目列表正在加载/);
   const expectedSubjects = await page.evaluate(async () => (await import('./js/questions-bank.js')).SUBJECTS.map(item => item.name));
   assert.deepEqual((await page.locator('[data-subject-id]').allTextContents()).map(text => text.trim()), expectedSubjects);
+  await page.keyboard.press('Space');
+  assert.equal(await subjectPanel.getAttribute('open'), null);
+  assert.equal(await page.locator('[data-subject-id]').first().isVisible(), false);
+  await page.keyboard.press('Space');
+  assert.equal(await subjectPanel.getAttribute('open'), '');
+  assert.doesNotMatch(await subjectPanel.innerText(), /科目列表正在加载/);
   assert.equal(await page.locator('dialog').isVisible(), false);
 
   await page.getByRole('button', { name: '随机出题' }).click();

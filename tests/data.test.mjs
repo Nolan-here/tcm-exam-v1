@@ -253,6 +253,17 @@ test('首页以原生折叠区域呈现复习模式、随机出题和按科目',
   }
 });
 
+test('科目列表不暴露虚假永久加载状态或错误的可访问描述', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  const subjectMarkup = html.match(/<details class="subject-panel"[\s\S]*?<\/details>/)?.[0] ?? '';
+  assert.match(subjectMarkup, /<summary class="category-summary">按科目<\/summary>/);
+  assert.match(subjectMarkup, /<div class="subject-buttons" aria-label="选择科目"><\/div>/);
+  assert.doesNotMatch(subjectMarkup, /aria-busy="true"|aria-live|role="status"|aria-describedby/);
+  assert.doesNotMatch(`${html}\n${app}`, /科目列表正在加载/);
+  assert.match(app, /SUBJECTS\.map\(subject => `<button class="subject-button"/);
+});
+
 test('复习题把选项框、正文和状态合并为一个无障碍名称，不弹出对错提示', async () => {
   const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
   assert.match(app, /const prompt = question\.prompt \|\| question\.stem/);
@@ -315,6 +326,6 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   for (const year of [2018, 2019, 2020, 2021, 2022]) {
     assert.match(worker, new RegExp(`questions-${year}\\.js`));
   }
-  assert.match(worker, /app\.js\?v=17/);
+  assert.match(worker, /app\.js\?v=18/);
   assert.match(worker, /styles\.css\?v=10/);
 });

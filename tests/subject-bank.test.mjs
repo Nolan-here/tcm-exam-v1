@@ -6,30 +6,64 @@ import {
   SUBJECTS,
   SUBJECT_QUESTIONS,
   SUBJECT_BANK_VERSION,
+  SUBJECT_BANK_COMPATIBLE_VERSIONS,
   createReviewPaper,
   createSubjectReviewPaper,
   getQuestionById,
   getQuestionsForSubject,
+  isSubjectBankVersionCompatible,
 } from '../js/questions-bank.js';
-import { parseSubjectText, subjectNameFromFile } from '../scripts/import-subject-txt.mjs';
+import {
+  parseSubjectText,
+  sourceNameFromFile,
+  subjectNameFromFile,
+} from '../scripts/import-subject-txt.mjs';
+import { SUBJECT_SOURCE_METADATA } from '../scripts/subject-metadata.mjs';
 
 const EXPECTED_SUBJECTS = [
-  ['中医儿科学题', 86],
-  ['中医内科学题1', 76],
-  ['中医基础理论题', 78],
-  ['中医外科学题', 85],
-  ['中医妇科学题', 115],
-  ['中医诊断学题1', 82],
-  ['中药学题', 100],
-  ['方剂学提', 100],
-  ['西依诊断学题', 100],
-  ['西医内科学题', 78],
-  ['针灸学题', 101],
+  ['中医儿科学', 86],
+  ['中医内科学', 76],
+  ['中医基础理论', 78],
+  ['中医外科学', 85],
+  ['中医妇科学', 115],
+  ['中医诊断学', 82],
+  ['中药学', 100],
+  ['方剂学', 100],
+  ['诊断学基础', 100],
+  ['内科学', 78],
+  ['针灸学', 101],
 ];
 
-test('TXT 文件名只转换为不含路径和扩展名的科目名称', () => {
-  assert.equal(subjectNameFromFile('D:\\题库\\中医内科学题1 .txt'), '中医内科学题1');
-  assert.equal(subjectNameFromFile('/tmp/中医基础理论题.TXT'), '中医基础理论题');
+test('TXT 文件名主体与正式科目名称分离且兼容 Windows 和 POSIX 路径', () => {
+  assert.equal(sourceNameFromFile('D:\\题库\\中医内科学题1 .txt'), '中医内科学题1');
+  assert.equal(subjectNameFromFile('D:\\题库\\中医内科学题1 .txt'), '中医内科学');
+  assert.equal(subjectNameFromFile('/tmp/中医基础理论题.TXT'), '中医基础理论');
+});
+
+test('11个原始文件名集中映射到权威科目名称并保持既有 subjectId', () => {
+  const expected = [
+    ['中医儿科学题', 'subject-886e0290c4c6', '中医儿科学'],
+    ['中医内科学题1', 'subject-f8eb0c1c1d57', '中医内科学'],
+    ['中医基础理论题', 'subject-437640b320ee', '中医基础理论'],
+    ['中医外科学题', 'subject-8fadaa1450e8', '中医外科学'],
+    ['中医妇科学题', 'subject-7d747b081087', '中医妇科学'],
+    ['中医诊断学题1', 'subject-2a05fbb70d6a', '中医诊断学'],
+    ['中药学题', 'subject-c7ee53845f8b', '中药学'],
+    ['方剂学提', 'subject-04ce7c00ab3a', '方剂学'],
+    ['西依诊断学题', 'subject-4aad384976f8', '诊断学基础'],
+    ['西医内科学题', 'subject-0ceb3f008cc1', '内科学'],
+    ['针灸学题', 'subject-6506ca413a14', '针灸学'],
+  ];
+  assert.deepEqual(
+    SUBJECT_SOURCE_METADATA.map(item => [item.sourceName, item.subjectId, item.subjectName]),
+    expected,
+  );
+  assert.deepEqual(SUBJECT_BANK_COMPATIBLE_VERSIONS, [
+    SUBJECT_BANK_VERSION,
+    'subject-txt-5c99dc87d7df90f3',
+  ]);
+  assert.equal(isSubjectBankVersionCompatible('subject-txt-5c99dc87d7df90f3'), true);
+  assert.equal(isSubjectBankVersionCompatible('unknown-version'), false);
 });
 
 test('TXT 解析兼容 BOM、CRLF、多行解析、B1 合并答案和 A3 共用题干', () => {
@@ -79,6 +113,11 @@ test('科目题库统计、名称和文件归属与导入报告一致', async ()
 
   for (const subject of SUBJECTS) {
     assert.doesNotMatch(subject.name, /\.txt$|[\\/]/i);
+    assert.doesNotMatch(subject.name, /题1|学题|方剂学提|西依/);
+    const metadata = SUBJECT_SOURCE_METADATA.find(item => item.subjectId === subject.id);
+    assert.equal(subject.name, metadata.subjectName);
+    assert.equal(subject.sourceName, metadata.sourceName);
+    assert.equal(subject.sourceFileName, metadata.sourceFileName);
     const questions = getQuestionsForSubject(subject.id);
     assert.equal(questions.length, subject.count);
     assert.ok(questions.every(question => question.subjectId === subject.id));
@@ -113,7 +152,7 @@ test('科目抽题严格隔离、题量不越界、不重复且不拆题组', ()
 });
 
 test('同一科目内部随机不会改变科目归属或制造重复', () => {
-  const subject = SUBJECTS.find(item => item.name === '中药学题');
+  const subject = SUBJECTS.find(item => item.name === '中药学');
   const first = createSubjectReviewPaper(subject.id, 50, () => 0);
   const second = createSubjectReviewPaper(subject.id, 50, () => 0.999999);
   assert.notDeepEqual(first.map(question => question.id), second.map(question => question.id));
