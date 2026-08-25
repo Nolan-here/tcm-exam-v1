@@ -87,10 +87,16 @@ test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', asyn
   assert.deepEqual(await caches.keys(), [currentCacheName]);
   assert.ok(lifecycle.indexOf('delete:tcm-exam-v1-20260824-21') < lifecycle.indexOf('claim'));
 
+  const resurrectedOldCache = await caches.open('tcm-exam-v1-20260824-21');
+  await resurrectedOldCache.put('./js/questions-bank.js', { source: 'resurrected-old-cache' });
   let responsePromise;
+  let cleanupPromise;
   listeners.get('fetch')({
     request: { method: 'GET', url: canonicalKey('./js/questions-bank.js') },
     respondWith: promise => { responsePromise = promise; },
+    waitUntil: promise => { cleanupPromise = promise; },
   });
   assert.equal((await responsePromise).source, 'new-cache');
+  await cleanupPromise;
+  assert.deepEqual(await caches.keys(), [currentCacheName]);
 });
