@@ -17,6 +17,7 @@ import {
   isSubjectBankVersionCompatible,
 } from './questions-bank.js';
 import { loadState, saveState, createSession } from './db.js';
+import { setupSubjectPanelFocus } from './subject-panel-focus.js';
 
 const main = document.querySelector('#main-content');
 const live = document.querySelector('#live-status');
@@ -75,10 +76,12 @@ function renderHome() {
       <div class="home-mode-content">
         <button class="mode-button" type="button" data-open-review>随机出题</button>
         <details class="subject-panel" data-subject-panel${homeSubjectsOpen ? ' open' : ''}>
-          <summary class="category-summary">按科目</summary>
-          <div class="subject-buttons" aria-label="选择科目">
-            ${SUBJECTS.map(subject => `<button class="subject-button" type="button" data-subject-id="${subject.id}">${esc(subject.name)}</button>`).join('')}
-          </div>
+          <summary class="category-summary" data-subject-summary>按科目</summary>
+          <section class="subject-list-region" data-subject-list tabindex="-1" aria-label="选择科目">
+            <ul class="subject-buttons">
+              ${SUBJECTS.map(subject => `<li><button class="subject-button" type="button" data-subject-id="${subject.id}">${esc(subject.name)}</button></li>`).join('')}
+            </ul>
+          </section>
         </details>
       </div>
     </details>
@@ -718,6 +721,8 @@ document.addEventListener('submit', async event => {
 reviewDialog.addEventListener('close', () => {
   if (view === 'home') focusElement(lastHomeFocus);
 });
+
+setupSubjectPanelFocus(document);
 
 document.addEventListener('toggle', event => {
   if (event.target.matches('[data-review-panel]')) homeReviewOpen = event.target.open;

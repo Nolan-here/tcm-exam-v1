@@ -22,8 +22,10 @@
         <div class="home-mode-content">
           <button class="mode-button" type="button" data-open-review>随机出题</button>
           <details class="subject-panel" data-subject-panel>
-            <summary class="category-summary">按科目</summary>
-            <div class="subject-buttons" aria-label="选择科目"></div>
+            <summary class="category-summary" data-subject-summary>按科目</summary>
+            <section class="subject-list-region" data-subject-list tabindex="-1" aria-label="选择科目">
+              <ul class="subject-buttons"></ul>
+            </section>
           </details>
         </div>
       </details>
@@ -57,6 +59,6 @@
       <p>本系统使用 JavaScript 在本地保存学习记录。启用后仍可离线使用，不要求登录。</p>
     </section>
   </noscript>
-  <script type="module" src="js/app.js?v=18"></script>
+  <script type="module" src="js/app.js?v=19"></script>
 </body>
 </html>

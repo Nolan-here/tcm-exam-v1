@@ -241,7 +241,7 @@ test('首页以原生折叠区域呈现复习模式、随机出题和按科目',
   assert.match(mainMarkup, /<details class="home-mode-panel" data-review-panel>/);
   assert.match(mainMarkup, /<summary class="mode-summary" data-review-summary>复习模式<\/summary>/);
   assert.match(mainMarkup, /<details class="subject-panel" data-subject-panel>/);
-  assert.match(mainMarkup, /<summary class="category-summary">按科目<\/summary>/);
+  assert.match(mainMarkup, /<summary class="category-summary" data-subject-summary>按科目<\/summary>/);
   assert.match(html, /<dialog id="review-count-dialog" aria-labelledby="review-count-heading">/);
   assert.match(html, /data-review-count="10"/);
   assert.match(html, /data-review-count="50"/);
@@ -256,12 +256,17 @@ test('首页以原生折叠区域呈现复习模式、随机出题和按科目',
 test('科目列表不暴露虚假永久加载状态或错误的可访问描述', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  const subjectFocus = await readFile(new URL('../js/subject-panel-focus.js', import.meta.url), 'utf8');
   const subjectMarkup = html.match(/<details class="subject-panel"[\s\S]*?<\/details>/)?.[0] ?? '';
-  assert.match(subjectMarkup, /<summary class="category-summary">按科目<\/summary>/);
-  assert.match(subjectMarkup, /<div class="subject-buttons" aria-label="选择科目"><\/div>/);
+  assert.match(subjectMarkup, /<summary class="category-summary" data-subject-summary>按科目<\/summary>/);
+  assert.match(subjectMarkup, /<section class="subject-list-region" data-subject-list tabindex="-1" aria-label="选择科目">/);
+  assert.match(subjectMarkup, /<ul class="subject-buttons"><\/ul>/);
   assert.doesNotMatch(subjectMarkup, /aria-busy="true"|aria-live|role="status"|aria-describedby/);
   assert.doesNotMatch(`${html}\n${app}`, /科目列表正在加载/);
-  assert.match(app, /SUBJECTS\.map\(subject => `<button class="subject-button"/);
+  assert.match(app, /SUBJECTS\.map\(subject => `<li><button class="subject-button"/);
+  assert.doesNotMatch(subjectFocus, /navigator\.userAgent|setTimeout|addEventListener\(['"]keydown/);
+  assert.match(subjectFocus, /root\.activeElement === summary/);
+  assert.match(subjectFocus, /requestFrame\(\(\) =>/);
 });
 
 test('复习题把选项框、正文和状态合并为一个无障碍名称，不弹出对错提示', async () => {
@@ -326,6 +331,7 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   for (const year of [2018, 2019, 2020, 2021, 2022]) {
     assert.match(worker, new RegExp(`questions-${year}\\.js`));
   }
-  assert.match(worker, /app\.js\?v=18/);
+  assert.match(worker, /app\.js\?v=19/);
+  assert.match(worker, /subject-panel-focus\.js/);
   assert.match(worker, /styles\.css\?v=10/);
 });

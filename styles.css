@@ -175,11 +175,13 @@ main { padding-block: 2rem 5rem; }
 }
 
 .subject-buttons {
+  margin: 0;
   padding: 0 1rem 1rem;
+  list-style: none;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
 }
 
-.subject-button { text-align: start; }
+.subject-button { width: 100%; text-align: start; }
 
 .unit-buttons { margin-bottom: 1.5rem; }
 .back-button { margin-bottom: 1.25rem; }
