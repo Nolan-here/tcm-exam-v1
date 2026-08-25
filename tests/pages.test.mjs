@@ -34,13 +34,17 @@ test('GitHub Pages 输出可直接进入系统并包含离线资源', async () =
   assert.match(html, /<script type="module" src="js\/app\.js\?v=16"><\/script>/);
   assert.doesNotMatch(html, /访问密钥|github-pages-access|pages-gate/);
   const versionedFiles = (await listPublishedFiles(outputRoot))
-    .filter(relativePath => !['.nojekyll', 'sw.js'].includes(relativePath.replaceAll('\\', '/')))
+    .filter(relativePath => relativePath.replaceAll('\\', '/') !== '.nojekyll')
     .sort();
   const fingerprint = createHash('sha256');
   for (const relativePath of versionedFiles) {
     fingerprint.update(relativePath.replaceAll('\\', '/'));
     fingerprint.update('\0');
-    fingerprint.update(await readFile(path.join(outputRoot, relativePath)));
+    fingerprint.update(await readFile(
+      relativePath.replaceAll('\\', '/') === 'sw.js'
+        ? path.join(projectRoot, 'sw.js')
+        : path.join(outputRoot, relativePath)
+    ));
     fingerprint.update('\0');
   }
   const expectedCacheName = `tcm-exam-v1-pages-${fingerprint.digest('hex').slice(0, 16)}`;

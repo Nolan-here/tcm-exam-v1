@@ -34,7 +34,7 @@ async function listPublishedFiles(directory, relativeDirectory = '') {
 }
 
 const versionedFiles = (await listPublishedFiles(outputRoot))
-  .filter(relativePath => !['.nojekyll', 'sw.js'].includes(relativePath.replaceAll('\\', '/')))
+  .filter(relativePath => relativePath.replaceAll('\\', '/') !== '.nojekyll')
   .sort();
 const fingerprint = createHash('sha256');
 for (const relativePath of versionedFiles) {

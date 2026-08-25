@@ -10,7 +10,7 @@ function canonicalKey(request) {
   return new URL(value, scopeUrl).href;
 }
 
-function createCacheStorage() {
+function createCacheStorage(lifecycle) {
   const stores = new Map();
   const open = async name => {
     if (!stores.has(name)) stores.set(name, new Map());
@@ -29,7 +29,10 @@ function createCacheStorage() {
     stores,
     open,
     keys: async () => [...stores.keys()],
-    delete: async name => stores.delete(name),
+    delete: async name => {
+      lifecycle.push(`delete:${name}`);
+      return stores.delete(name);
+    },
     match: async request => {
       const key = canonicalKey(request);
       for (const store of stores.values()) {
@@ -52,7 +55,8 @@ test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', asyn
   assert.equal(currentCacheName, 'tcm-exam-v1-20260825-22');
   assert.notEqual(currentCacheName, 'tcm-exam-v1-20260824-21');
 
-  const caches = createCacheStorage();
+  const lifecycle = [];
+  const caches = createCacheStorage(lifecycle);
   const oldCache = await caches.open('tcm-exam-v1-20260824-21');
   await oldCache.put('./js/questions-bank.js', { source: 'old-cache' });
 
@@ -61,8 +65,8 @@ test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', asyn
   let claimedClients = false;
   const self = {
     addEventListener: (type, listener) => listeners.set(type, listener),
-    skipWaiting: () => { skippedWaiting = true; },
-    clients: { claim: () => { claimedClients = true; } },
+    skipWaiting: () => { skippedWaiting = true; lifecycle.push('skipWaiting'); },
+    clients: { claim: () => { claimedClients = true; lifecycle.push('claim'); } },
     location: { origin: new URL(scopeUrl).origin },
   };
   vm.runInNewContext(workerSource, {
@@ -81,6 +85,7 @@ test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', asyn
   await dispatchLifecycle(listeners.get('activate'));
   assert.equal(claimedClients, true);
   assert.deepEqual(await caches.keys(), [currentCacheName]);
+  assert.ok(lifecycle.indexOf('delete:tcm-exam-v1-20260824-21') < lifecycle.indexOf('claim'));
 
   let responsePromise;
   listeners.get('fetch')({
