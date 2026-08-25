@@ -50,8 +50,9 @@ function parseChineseNumber(value) {
 }
 
 export function subjectNameFromFile(filePath) {
-  const extension = path.extname(filePath);
-  return path.basename(filePath, extension).trim();
+  const fileName = path.posix.basename(String(filePath).replaceAll('\\', '/'));
+  const extension = path.extname(fileName);
+  return path.basename(fileName, extension).trim();
 }
 
 function isIgnoredLine(line) {
