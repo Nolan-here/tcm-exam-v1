@@ -11,6 +11,13 @@ import {
 } from './questions-2018-2022.js';
 import { applySourceConfirmedQuestionRepairs } from './source-confirmed-question-repairs.js';
 import { applyAuthorityResearchedExplanationBackfills } from './authority-researched-explanation-backfills.js';
+import {
+  SUBJECTS,
+  SUBJECT_QUESTIONS,
+  SUBJECT_BANK_VERSION,
+} from './questions-subjects.js';
+
+export { SUBJECTS, SUBJECT_QUESTIONS, SUBJECT_BANK_VERSION };
 
 export const QUESTION_BANK_VERSION = '2018-2024-pdf-docx-dedup-grouped-v5';
 export const QUESTION_BANK_SOURCES = [
@@ -55,10 +62,21 @@ export const EXAM_UNITS = UNIT_NAMES.map((name, index) => ({
   count: 150
 }));
 
-const QUESTION_BY_ID = new Map(QUESTIONS.map(question => [question.id, question]));
+const QUESTION_BY_ID = new Map(
+  [...QUESTIONS, ...SUBJECT_QUESTIONS].map(question => [question.id, question])
+);
+const SUBJECT_BY_ID = new Map(SUBJECTS.map(subject => [subject.id, subject]));
 
 export function getQuestionById(id) {
   return QUESTION_BY_ID.get(id) || null;
+}
+
+export function getSubjectById(id) {
+  return SUBJECT_BY_ID.get(id) || null;
+}
+
+export function getQuestionsForSubject(subjectId) {
+  return SUBJECT_QUESTIONS.filter(question => question.subjectId === subjectId);
 }
 
 export function getQuestionsForUnit(unit) {
@@ -98,6 +116,22 @@ function chooseWholeBlocks(blocks, targetCount, random) {
   return shuffled(paths[targetCount], random);
 }
 
+function chooseWholeBlocksAtMost(blocks, targetCount, random) {
+  const candidates = shuffled(blocks, random);
+  const paths = Array(targetCount + 1).fill(null);
+  paths[0] = [];
+  for (const block of candidates) {
+    const size = block.questions.length;
+    for (let count = targetCount - size; count >= 0; count -= 1) {
+      if (paths[count] && !paths[count + size]) paths[count + size] = [...paths[count], block];
+    }
+  }
+  for (let count = targetCount; count >= 1; count -= 1) {
+    if (paths[count]) return shuffled(paths[count], random);
+  }
+  return [];
+}
+
 export function createExamPaper(unit, random = Math.random) {
   const blueprint = EXAM_UNIT_BLUEPRINTS.find(item => item.unit === unit);
   if (!blueprint) throw new RangeError(`不存在第 ${unit} 单元`);
@@ -115,6 +149,17 @@ export function createExamPaper(unit, random = Math.random) {
 export function createReviewPaper(count, random = Math.random) {
   const safeCount = Math.max(1, Math.min(QUESTIONS.length, Number(count) || 10));
   const selected = chooseWholeBlocks(createQuestionBlocks(QUESTIONS), safeCount, random);
+  const typeIndex = new Map(QUESTION_TYPE_ORDER.map((type, index) => [type, index]));
+  selected.sort((left, right) => typeIndex.get(left.type) - typeIndex.get(right.type));
+  return selected.flatMap(block => block.questions);
+}
+
+export function createSubjectReviewPaper(subjectId, count, random = Math.random) {
+  const subject = getSubjectById(subjectId);
+  if (!subject) throw new RangeError(`不存在科目：${subjectId}`);
+  const pool = getQuestionsForSubject(subjectId);
+  const safeCount = Math.max(1, Math.min(pool.length, Number(count) || 10));
+  const selected = chooseWholeBlocksAtMost(createQuestionBlocks(pool), safeCount, random);
   const typeIndex = new Map(QUESTION_TYPE_ORDER.map((type, index) => [type, index]));
   selected.sort((left, right) => typeIndex.get(left.type) - typeIndex.get(right.type));
   return selected.flatMap(block => block.questions);

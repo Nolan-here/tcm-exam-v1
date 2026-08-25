@@ -122,7 +122,8 @@ main { padding-block: 2rem 5rem; }
 
 .home-actions,
 .unit-buttons,
-.quantity-buttons {
+.quantity-buttons,
+.subject-buttons {
   display: grid;
   gap: 1rem;
 }
@@ -132,13 +133,53 @@ main { padding-block: 2rem 5rem; }
   margin: min(16vh, 7rem) auto 0;
 }
 
-.mode-button {
+.mode-button,
+.mode-summary {
   min-height: 64px;
   border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface);
   color: var(--accent-strong);
   font-size: 1.2rem;
   font-weight: 700;
 }
+
+.mode-summary {
+  padding: .75rem 1rem;
+  cursor: pointer;
+}
+
+.home-mode-panel,
+.subject-panel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.home-mode-panel[open] > .mode-summary,
+.subject-panel[open] > .category-summary {
+  border-bottom-color: var(--border);
+}
+
+.home-mode-content {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.category-summary {
+  padding: .75rem 1rem;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.subject-buttons {
+  padding: 0 1rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.subject-button { text-align: start; }
 
 .unit-buttons { margin-bottom: 1.5rem; }
 .back-button { margin-bottom: 1.25rem; }

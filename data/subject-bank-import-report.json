@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "subjectBankVersion": "subject-txt-5c99dc87d7df90f3",
+  "discoveredTextFiles": 11,
+  "parsedFiles": 11,
+  "failedFiles": 0,
+  "totalParsedQuestions": 1003,
+  "deployedQuestions": 1001,
+  "missingAnswers": 0,
+  "missingExplanations": 0,
+  "invalidQuestions": 0,
+  "formatAnomalies": 1,
+  "duplicateGroups": 1,
+  "duplicateQuestions": 2,
+  "subjects": [
+    {
+      "id": "subject-886e0290c4c6",
+      "name": "中医儿科学题",
+      "count": 86
+    },
+    {
+      "id": "subject-f8eb0c1c1d57",
+      "name": "中医内科学题1",
+      "count": 76
+    },
+    {
+      "id": "subject-437640b320ee",
+      "name": "中医基础理论题",
+      "count": 78
+    },
+    {
+      "id": "subject-8fadaa1450e8",
+      "name": "中医外科学题",
+      "count": 85
+    },
+    {
+      "id": "subject-7d747b081087",
+      "name": "中医妇科学题",
+      "count": 115
+    },
+    {
+      "id": "subject-2a05fbb70d6a",
+      "name": "中医诊断学题1",
+      "count": 82
+    },
+    {
+      "id": "subject-c7ee53845f8b",
+      "name": "中药学题",
+      "count": 100
+    },
+    {
+      "id": "subject-04ce7c00ab3a",
+      "name": "方剂学提",
+      "count": 100
+    },
+    {
+      "id": "subject-4aad384976f8",
+      "name": "西依诊断学题",
+      "count": 100
+    },
+    {
+      "id": "subject-0ceb3f008cc1",
+      "name": "西医内科学题",
+      "count": 78
+    },
+    {
+      "id": "subject-6506ca413a14",
+      "name": "针灸学题",
+      "count": 101
+    }
+  ],
+  "failures": [],
+  "issues": [
+    {
+      "subject": "针灸学题",
+      "source": "针灸学题",
+      "code": "group-range-mismatch",
+      "message": "题组标题声明 101—103，实际题号为 102、103。",
+      "lineNumber": 853
+    }
+  ],
+  "duplicates": {
+    "excludedExactDuplicateBlocks": [
+      {
+        "subject": "针灸学题",
+        "keptIds": [
+          "SUB-6506ca413a14-0069",
+          "SUB-6506ca413a14-0070"
+        ],
+        "excludedIds": [
+          "SUB-6506ca413a14-0096",
+          "SUB-6506ca413a14-0097"
+        ]
+      }
+    ],
+    "remainingExactDuplicateGroups": []
+  }
+}

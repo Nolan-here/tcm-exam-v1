@@ -1,5 +1,7 @@
 import {
   QUESTIONS,
+  SUBJECTS,
+  SUBJECT_BANK_VERSION,
   EXAM_UNITS,
   EXAM_BLUEPRINT_VERSION,
   PAPER_FORMAT_VERSION,
@@ -7,9 +9,11 @@ import {
   QUESTION_BANK_VERSION,
   createExamPaper,
   createReviewPaper,
+  createSubjectReviewPaper,
   createQuestionBlocks,
   createQuestionPages,
   getQuestionById,
+  getSubjectById,
 } from './questions-bank.js';
 import { loadState, saveState, createSession } from './db.js';
 
@@ -17,11 +21,18 @@ const main = document.querySelector('#main-content');
 const live = document.querySelector('#live-status');
 const appTitle = document.querySelector('#app-title');
 const reviewDialog = document.querySelector('#review-count-dialog');
+const reviewCountHeading = document.querySelector('#review-count-heading');
 const customCountForm = document.querySelector('#custom-count-form');
+const customCountLabel = document.querySelector('#custom-count-label');
+const customCountInput = document.querySelector('#custom-count');
 const PAGE_SIZE = 10;
 
 let state = await loadState();
 let view = 'home';
+let selectedSubjectId = null;
+let homeReviewOpen = false;
+let homeSubjectsOpen = false;
+let lastHomeFocus = '[data-review-summary]';
 
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -48,7 +59,7 @@ function setView(nextView) {
   view = nextView;
   render();
   scrollToTop();
-  if (view === 'home') focusElement('[data-open-review]');
+  if (view === 'home') focusElement(lastHomeFocus);
   else focusPageHeading();
 }
 
@@ -58,7 +69,18 @@ function pageHeading(text) {
 
 function renderHome() {
   main.innerHTML = `<section class="home-actions" aria-label="选择答题模式">
-    <button class="mode-button" type="button" data-open-review>复习模式</button>
+    <details class="home-mode-panel" data-review-panel${homeReviewOpen ? ' open' : ''}>
+      <summary class="mode-summary" data-review-summary>复习模式</summary>
+      <div class="home-mode-content">
+        <button class="mode-button" type="button" data-open-review>随机出题</button>
+        <details class="subject-panel" data-subject-panel${homeSubjectsOpen ? ' open' : ''}>
+          <summary class="category-summary">按科目</summary>
+          <div class="subject-buttons" aria-label="选择科目">
+            ${SUBJECTS.map(subject => `<button class="subject-button" type="button" data-subject-id="${subject.id}">${esc(subject.name)}</button>`).join('')}
+          </div>
+        </details>
+      </div>
+    </details>
     <button class="mode-button" type="button" data-open-exam>考试模式</button>
   </section>`;
 }
@@ -67,6 +89,11 @@ function currentReview() {
   const session = state.currentSessionId ? state.sessions[state.currentSessionId] : null;
   if (!session || session.mode !== 'review-2024' || session.config?.bankVersion !== QUESTION_BANK_VERSION) return null;
   if (session.config?.paperFormatVersion !== PAPER_FORMAT_VERSION) return null;
+  if (session.config?.source === 'subject') {
+    const subject = getSubjectById(session.config.subjectId);
+    if (!subject || session.config.subjectBankVersion !== SUBJECT_BANK_VERSION) return null;
+    if (!session.questionIds.every(questionId => getQuestionById(questionId)?.subjectId === subject.id)) return null;
+  }
   if (!session.questionIds.every(questionId => getQuestionById(questionId))) return null;
   return session;
 }
@@ -220,11 +247,35 @@ function pagination(session, mode, pages) {
   </nav>`;
 }
 
+function openReviewCountDialog(subjectId = null) {
+  const subject = subjectId ? getSubjectById(subjectId) : null;
+  selectedSubjectId = subject?.id ?? null;
+  const maximum = subject?.count ?? QUESTIONS.length;
+  reviewCountHeading.textContent = subject ? `选择${subject.name}题量` : '选择随机出题题量';
+  customCountLabel.textContent = `自定义题量，1 到 ${maximum} 题`;
+  customCountInput.max = String(maximum);
+  customCountInput.value = String(Math.min(10, maximum));
+  customCountForm.hidden = true;
+  reviewDialog.showModal();
+  focusElement('#review-count-heading');
+}
+
 async function startReview(count) {
-  const safeCount = Math.max(1, Math.min(QUESTIONS.length, Number(count) || 10));
-  const questionIds = createReviewPaper(safeCount).map(question => question.id);
+  const subject = selectedSubjectId ? getSubjectById(selectedSubjectId) : null;
+  const maximum = subject?.count ?? QUESTIONS.length;
+  const requestedCount = Math.max(1, Math.min(maximum, Number(count) || 10));
+  const questions = subject
+    ? createSubjectReviewPaper(subject.id, requestedCount)
+    : createReviewPaper(requestedCount);
+  const actualCount = questions.length;
+  const questionIds = questions.map(question => question.id);
   const session = createSession(questionIds, {
-    count: safeCount,
+    count: actualCount,
+    requestedCount,
+    source: subject ? 'subject' : 'random',
+    subjectId: subject?.id ?? null,
+    subjectName: subject?.name ?? null,
+    subjectBankVersion: subject ? SUBJECT_BANK_VERSION : null,
     bankVersion: QUESTION_BANK_VERSION,
     paperFormatVersion: PAPER_FORMAT_VERSION
   }, 'review-2024');
@@ -233,7 +284,7 @@ async function startReview(count) {
   await saveState(state);
   reviewDialog.close();
   setView('review');
-  announce(`复习已开始，共 ${safeCount} 题。`);
+  announce(`${subject ? `${subject.name}复习` : '随机出题'}已开始，共 ${actualCount} 题。`);
 }
 
 function renderReview() {
@@ -249,9 +300,11 @@ function renderReview() {
   const typeLabel = QUESTION_TYPE_LABELS[currentPage.type] || currentPage.type;
   const firstSequence = session.questionIds.indexOf(currentPage.questions[0].id) + 1;
   const lastSequence = session.questionIds.indexOf(currentPage.questions.at(-1).id) + 1;
-  main.innerHTML = `${pageHeading('复习模式')}
+  const subject = session.config.source === 'subject' ? getSubjectById(session.config.subjectId) : null;
+  const reviewLabel = subject ? `复习模式：${subject.name}` : '复习模式：随机出题';
+  main.innerHTML = `${pageHeading(reviewLabel)}
     <button class="back-button" type="button" data-home>返回首页</button>
-    <section class="type-progress" aria-label="当前复习进度">
+    <section class="type-progress" aria-label="${esc(reviewLabel)}当前进度">
       <h3>${esc(typeLabel)}</h3>
       <p>当前显示第 ${firstSequence} 至 ${lastSequence} 题，共 ${session.questionIds.length} 题。</p>
     </section>
@@ -571,9 +624,17 @@ document.addEventListener('click', async event => {
   if (!button) return;
 
   if (button.hasAttribute('data-open-review')) {
-    customCountForm.hidden = true;
-    reviewDialog.showModal();
-    focusElement('#review-count-heading');
+    lastHomeFocus = '[data-open-review]';
+    openReviewCountDialog();
+    return;
+  }
+  if (button.dataset.subjectId) {
+    const subject = getSubjectById(button.dataset.subjectId);
+    if (!subject) return;
+    homeReviewOpen = true;
+    homeSubjectsOpen = true;
+    lastHomeFocus = `[data-subject-id="${subject.id}"]`;
+    openReviewCountDialog(subject.id);
     return;
   }
   if (button.hasAttribute('data-close-review-dialog')) {
@@ -654,8 +715,13 @@ document.addEventListener('submit', async event => {
 });
 
 reviewDialog.addEventListener('close', () => {
-  if (view === 'home') focusElement('[data-open-review]');
+  if (view === 'home') focusElement(lastHomeFocus);
 });
+
+document.addEventListener('toggle', event => {
+  if (event.target.matches('[data-review-panel]')) homeReviewOpen = event.target.open;
+  if (event.target.matches('[data-subject-panel]')) homeSubjectsOpen = event.target.open;
+}, true);
 
 if (state.settings?.theme && state.settings.theme !== 'system') {
   document.documentElement.dataset.theme = state.settings.theme;

@@ -52,8 +52,8 @@ async function dispatchLifecycle(listener, event = {}) {
 test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', async () => {
   const workerSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   const currentCacheName = workerSource.match(/const CACHE_NAME = '([^']+)'/)?.[1];
-  assert.equal(currentCacheName, 'tcm-exam-v1-20260825-22');
-  assert.notEqual(currentCacheName, 'tcm-exam-v1-20260824-21');
+  assert.equal(currentCacheName, 'tcm-exam-v1-20260825-23');
+  assert.notEqual(currentCacheName, 'tcm-exam-v1-20260825-22');
 
   const lifecycle = [];
   const caches = createCacheStorage(lifecycle);
@@ -80,6 +80,7 @@ test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', asyn
   assert.equal(skippedWaiting, true);
   const currentCache = caches.stores.get(currentCacheName);
   assert.ok(currentCache.has(canonicalKey('./js/questions-bank.js')));
+  assert.ok(currentCache.has(canonicalKey('./js/questions-subjects.js')));
   assert.ok(currentCache.has(canonicalKey('./js/authority-researched-explanation-backfills.js')));
 
   await dispatchLifecycle(listeners.get('activate'));

@@ -16,11 +16,27 @@ page.on('console', message => {
 
 try {
   await page.goto(baseURL, { waitUntil: 'networkidle' });
-  const homeButtons = await page.locator('main button').allTextContents();
-  assert.deepEqual(homeButtons.map(text => text.trim()), ['复习模式', '考试模式']);
+  const reviewPanel = page.locator('[data-review-panel]');
+  const reviewSummary = page.locator('[data-review-summary]');
+  const subjectPanel = page.locator('[data-subject-panel]');
+  const subjectSummary = subjectPanel.locator('summary');
+  assert.equal(await reviewPanel.getAttribute('open'), null);
+  await reviewSummary.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await reviewPanel.getAttribute('open'), '');
+  await page.keyboard.press('Space');
+  assert.equal(await reviewPanel.getAttribute('open'), null);
+  await page.keyboard.press('Space');
+  assert.equal(await reviewPanel.getAttribute('open'), '');
+  assert.equal(await subjectPanel.getAttribute('open'), null);
+  await subjectSummary.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await subjectPanel.getAttribute('open'), '');
+  const expectedSubjects = await page.evaluate(async () => (await import('./js/questions-bank.js')).SUBJECTS.map(item => item.name));
+  assert.deepEqual((await page.locator('[data-subject-id]').allTextContents()).map(text => text.trim()), expectedSubjects);
   assert.equal(await page.locator('dialog').isVisible(), false);
 
-  await page.getByRole('button', { name: '复习模式' }).click();
+  await page.getByRole('button', { name: '随机出题' }).click();
   assert.equal(await page.getByRole('dialog').isVisible(), true);
   await page.getByRole('button', { name: '10 题', exact: true }).click();
   await page.locator('.question-card').first().waitFor();
@@ -68,7 +84,7 @@ try {
   assert.equal(await secondCard.locator('details').getAttribute('open'), null);
 
   await page.getByRole('button', { name: '返回首页' }).click();
-  await page.getByRole('button', { name: '复习模式' }).click();
+  await page.getByRole('button', { name: '随机出题' }).click();
   await page.getByRole('button', { name: '自定义数量' }).click();
   await page.getByLabel('自定义题量，1 到 3492 题').fill('3492');
   await page.getByRole('button', { name: '开始复习' }).click();
@@ -125,6 +141,53 @@ try {
   await page.keyboard.press('Space');
   await page.waitForFunction(element => element.getAttribute('aria-label')?.endsWith('。错误'), await firstB1WrongInput.elementHandle());
   assert.equal(await firstB1Group.locator('details.group-explanation').getAttribute('open'), '');
+
+  await page.getByRole('button', { name: '返回首页' }).click();
+  const verifySubjectSession = async expectedSubject => page.evaluate(async subjectName => {
+    const state = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('tcm-exam-v1');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const get = database.transaction('app', 'readonly').objectStore('app').get('state');
+        get.onerror = () => reject(get.error);
+        get.onsuccess = () => { resolve(get.result); database.close(); };
+      };
+    });
+    const bank = await import('./js/questions-bank.js');
+    const session = state.sessions[state.currentSessionId];
+    const questions = session.questionIds.map(bank.getQuestionById);
+    return {
+      configuredSubject: session.config.subjectName,
+      count: questions.length,
+      unique: new Set(questions.map(question => question.id)).size,
+      subjects: [...new Set(questions.map(question => question.sourceSubject))],
+      allMatch: questions.every(question => question.subject === subjectName && question.sourceSubject === subjectName),
+    };
+  }, expectedSubject);
+
+  const firstSubjectName = expectedSubjects[0];
+  await page.getByRole('button', { name: firstSubjectName, exact: true }).click();
+  await page.getByRole('heading', { name: `选择${firstSubjectName}题量` }).waitFor();
+  await page.getByRole('button', { name: '50 题', exact: true }).click();
+  await page.getByRole('heading', { name: `复习模式：${firstSubjectName}` }).waitFor();
+  const firstSubjectSession = await verifySubjectSession(firstSubjectName);
+  assert.equal(firstSubjectSession.configuredSubject, firstSubjectName);
+  assert.equal(firstSubjectSession.count, firstSubjectSession.unique);
+  assert.deepEqual(firstSubjectSession.subjects, [firstSubjectName]);
+  assert.equal(firstSubjectSession.allMatch, true);
+
+  await page.getByRole('button', { name: '返回首页' }).click();
+  await page.waitForFunction(subjectName => document.activeElement?.textContent?.trim() === subjectName, firstSubjectName);
+  const secondSubjectName = expectedSubjects[1];
+  await page.getByRole('button', { name: secondSubjectName, exact: true }).click();
+  await page.getByRole('button', { name: '100 题', exact: true }).click();
+  await page.getByRole('heading', { name: `复习模式：${secondSubjectName}` }).waitFor();
+  const secondSubjectSession = await verifySubjectSession(secondSubjectName);
+  assert.equal(secondSubjectSession.count, secondSubjectSession.unique);
+  assert.deepEqual(secondSubjectSession.subjects, [secondSubjectName]);
+  assert.equal(secondSubjectSession.allMatch, true);
+  assert.ok(secondSubjectSession.count <= 100);
 
   await page.getByRole('button', { name: '返回首页' }).click();
   await page.getByRole('button', { name: '考试模式' }).click();
@@ -204,11 +267,14 @@ try {
   await offlinePage.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await offlineContext.setOffline(true);
   await offlinePage.reload({ waitUntil: 'domcontentloaded' });
-  assert.deepEqual((await offlinePage.locator('main button').allTextContents()).map(text => text.trim()), ['复习模式', '考试模式']);
+  assert.equal((await offlinePage.locator('[data-review-summary]').innerText()).trim(), '复习模式');
+  assert.equal((await offlinePage.getByRole('button', { name: '考试模式' }).innerText()).trim(), '考试模式');
+  await offlinePage.locator('[data-review-summary]').click();
+  assert.equal(await offlinePage.getByRole('button', { name: '随机出题' }).isVisible(), true);
   await offlineContext.close();
 
   assert.deepEqual(errors, []);
-  console.log('浏览器冒烟测试通过：首页、复习题组反馈、考试题型切换锁定、交卷结果与离线重载均正常。');
+  console.log('浏览器冒烟测试通过：首页折叠、随机与按科目隔离、复习题组反馈、考试题型锁定、交卷结果与离线重载均正常。');
 } finally {
   await browser.close();
 }

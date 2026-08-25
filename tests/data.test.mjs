@@ -233,18 +233,22 @@ test('备份不导出同步密码哈希且可通过格式验证', () => {
   assert.equal(validateBackup(backup).sync.passwordHash, null);
 });
 
-test('首页主要内容只有复习模式和考试模式两个按钮', async () => {
+test('首页以原生折叠区域呈现复习模式、随机出题和按科目', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const mainMarkup = html.match(/<main[^>]*>([\s\S]*?)<\/main>/)?.[1] ?? '';
   const buttons = [...mainMarkup.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map(match => match[1].trim());
-  assert.deepEqual(buttons, ['复习模式', '考试模式']);
+  assert.deepEqual(buttons, ['随机出题', '考试模式']);
+  assert.match(mainMarkup, /<details class="home-mode-panel" data-review-panel>/);
+  assert.match(mainMarkup, /<summary class="mode-summary" data-review-summary>复习模式<\/summary>/);
+  assert.match(mainMarkup, /<details class="subject-panel" data-subject-panel>/);
+  assert.match(mainMarkup, /<summary class="category-summary">按科目<\/summary>/);
   assert.match(html, /<dialog id="review-count-dialog" aria-labelledby="review-count-heading">/);
   assert.match(html, /data-review-count="10"/);
   assert.match(html, /data-review-count="50"/);
   assert.match(html, /data-review-count="100"/);
   assert.match(html, /data-show-custom-count/);
   assert.match(html, /aria-live="polite"/);
-  for (const removed of ['设置', '科目', '难度', '错题本', '收藏', '重点题']) {
+  for (const removed of ['设置', '难度', '错题本', '收藏', '重点题']) {
     assert.doesNotMatch(mainMarkup, new RegExp(removed));
   }
 });
@@ -267,7 +271,8 @@ test('复习题把选项框、正文和状态合并为一个无障碍名称，�
   assert.match(app, /answer\.firstCorrect === false/);
   assert.match(app, /共用题干/);
   assert.match(app, /共用备选答案/);
-  assert.match(app, /createReviewPaper\(safeCount\)/);
+  assert.match(app, /createReviewPaper\(requestedCount\)/);
+  assert.match(app, /createSubjectReviewPaper\(subject\.id, requestedCount\)/);
   assert.doesNotMatch(app, /<legend/);
   assert.doesNotMatch(app, /请选择一个答案/);
   assert.doesNotMatch(app, /answer-feedback/);
@@ -301,6 +306,7 @@ test('考试按四单元出题，交卷前不显示反馈或讲解，交卷后�
 test('Service Worker 离线缓存包含新题库和当前资源版本', async () => {
   const worker = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.match(worker, /questions-bank\.js/);
+  assert.match(worker, /questions-subjects\.js/);
   assert.match(worker, /source-confirmed-question-repairs\.js/);
   assert.match(worker, /authority-researched-explanation-backfills\.js/);
   assert.match(worker, /questions-2023\.js/);
@@ -309,6 +315,6 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   for (const year of [2018, 2019, 2020, 2021, 2022]) {
     assert.match(worker, new RegExp(`questions-${year}\\.js`));
   }
-  assert.match(worker, /app\.js\?v=16/);
-  assert.match(worker, /styles\.css\?v=9/);
+  assert.match(worker, /app\.js\?v=17/);
+  assert.match(worker, /styles\.css\?v=10/);
 });

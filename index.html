@@ -8,7 +8,7 @@
   <title>中医执业医师刷题系统</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
   <header class="site-header">
@@ -17,14 +17,23 @@
 
   <main id="main-content" tabindex="-1">
     <section class="home-actions" aria-label="选择答题模式">
-      <button class="mode-button" type="button" data-open-review>复习模式</button>
+      <details class="home-mode-panel" data-review-panel>
+        <summary class="mode-summary" data-review-summary>复习模式</summary>
+        <div class="home-mode-content">
+          <button class="mode-button" type="button" data-open-review>随机出题</button>
+          <details class="subject-panel" data-subject-panel>
+            <summary class="category-summary">按科目</summary>
+            <p class="notice">科目列表正在加载。</p>
+          </details>
+        </div>
+      </details>
       <button class="mode-button" type="button" data-open-exam>考试模式</button>
     </section>
   </main>
 
   <dialog id="review-count-dialog" aria-labelledby="review-count-heading">
     <div class="dialog-body">
-      <h2 id="review-count-heading" tabindex="-1">选择复习题量</h2>
+      <h2 id="review-count-heading" tabindex="-1">选择随机出题题量</h2>
       <div class="quantity-buttons">
         <button type="button" data-review-count="10">10 题</button>
         <button type="button" data-review-count="50">50 题</button>
@@ -32,7 +41,7 @@
         <button type="button" data-show-custom-count>自定义数量</button>
       </div>
       <form id="custom-count-form" class="custom-count" hidden>
-        <label for="custom-count">自定义题量，1 到 3492 题</label>
+        <label id="custom-count-label" for="custom-count">自定义题量，1 到 3492 题</label>
         <input id="custom-count" name="count" type="number" min="1" max="3492" value="10" required>
         <button class="primary" type="submit">开始复习</button>
       </form>
@@ -48,6 +57,6 @@
       <p>本系统使用 JavaScript 在本地保存学习记录。启用后仍可离线使用，不要求登录。</p>
     </section>
   </noscript>
-  <script type="module" src="js/app.js?v=16"></script>
+  <script type="module" src="js/app.js?v=17"></script>
 </body>
 </html>
