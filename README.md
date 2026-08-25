@@ -60,6 +60,9 @@ npm run audit:history
 
 - 网页总题库入口：`js/questions-bank.js`
 - 原始来源确认修复层：`js/source-confirmed-question-repairs.js`；只在正式汇总入口应用逐字段修复，并以修复前值断言防止底层题库变化后静默误改。
+- 2023 年权威资料后补解析层：`js/authority-researched-explanation-backfills.js`；只补充经原始 DOCX 确认缺失、且经权威资料研究达到写入标准的解析，保留答案和全部结构字段，并以 `before` 断言防漂移。
+- 后补解析证据库：`data/authority-researched-explanations-2023.js`；争议题独立导出于 `data/authority-researched-explanation-disputes-2023.js`。来源 URL 仅保存在证据记录中，不进入做题界面的解析正文。
+- 后补专项测试只验证结构不变量、证据记录完整性、来源 ID、争议隔离、高风险题独立机构数量和 `before` 保护；自动测试不能代替来源正文的医学语义复核。
 - 2023 年题库：`js/questions-2023.js`
 - 2024 年题库：`js/questions-2024.js`
 - 2018—2022 年题库：`js/questions-2018-2022.js`

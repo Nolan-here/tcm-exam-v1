@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QUESTIONS } from '../js/questions-bank.js';
+import { QUESTIONS, SOURCE_CONFIRMED_QUESTIONS } from '../js/questions-bank.js';
 import { QUESTIONS_2024 } from '../js/questions-2024.js';
 import { QUESTIONS_2023 } from '../js/questions-2023.js';
 import { QUESTIONS_2018_2022 } from '../js/questions-2018-2022.js';
@@ -39,13 +39,13 @@ test('来源确认修复只覆盖批准的44题50字段', () => {
 test('正式题库应用修复且底层生成题库仍与修复前值一致', () => {
   const rawQuestions = [...QUESTIONS_2024, ...QUESTIONS_2023, ...QUESTIONS_2018_2022];
   const rawById = new Map(rawQuestions.map(question => [question.id, question]));
-  const formalById = new Map(QUESTIONS.map(question => [question.id, question]));
+  const formalById = new Map(SOURCE_CONFIRMED_QUESTIONS.map(question => [question.id, question]));
   for (const repair of SOURCE_CONFIRMED_QUESTION_REPAIRS) {
     assert.equal(readField(rawById.get(repair.id), repair.field), repair.before);
     assert.equal(readField(formalById.get(repair.id), repair.field), repair.after);
   }
   assert.deepEqual(
-    QUESTIONS.map(question => [question.id, question.answer]),
+    SOURCE_CONFIRMED_QUESTIONS.map(question => [question.id, question.answer]),
     rawQuestions.map(question => [question.id, question.answer]),
   );
 });
@@ -55,7 +55,7 @@ test('正式题库只产生批准的50个字段差异', () => {
   const actual = [];
   for (let index = 0; index < rawQuestions.length; index += 1) {
     const before = flattenQuestion(rawQuestions[index]);
-    const after = flattenQuestion(QUESTIONS[index]);
+    const after = flattenQuestion(SOURCE_CONFIRMED_QUESTIONS[index]);
     for (const field of new Set([...before.keys(), ...after.keys()])) {
       if (before.get(field) !== after.get(field)) actual.push(`${rawQuestions[index].id}\u0000${field}`);
     }
@@ -100,8 +100,8 @@ test('修复层对前值漂移、重复字段和缺失ID均立即失败', () => 
   }
 });
 
-test('修复后不独立清理异常空格，并保留71道缺失解析和原答案冲突', () => {
-  const report = scanFullQuestionBank(QUESTIONS);
+test('来源确认修复后不独立清理异常空格，并保留71道缺失解析和原答案冲突', () => {
+  const report = scanFullQuestionBank(SOURCE_CONFIRMED_QUESTIONS);
   assert.equal(report.scanSummary.candidateCount, 649);
   assert.equal(report.scanSummary.affectedQuestionCount, 458);
   assert.deepEqual(report.scanSummary.byIssueType, {
@@ -118,7 +118,7 @@ test('异常空格只随2023-U1-068整段水印删除减少一条，没有独立
   const before = scanFullQuestionBank(rawQuestions).candidates
     .filter(candidate => candidate.issueType === 'internal-cjk-whitespace')
     .map(candidate => `${candidate.id}\u0000${candidate.field}`);
-  const after = new Set(scanFullQuestionBank(QUESTIONS).candidates
+  const after = new Set(scanFullQuestionBank(SOURCE_CONFIRMED_QUESTIONS).candidates
     .filter(candidate => candidate.issueType === 'internal-cjk-whitespace')
     .map(candidate => `${candidate.id}\u0000${candidate.field}`));
   assert.deepEqual(before.filter(key => !after.has(key)), ['2023-U1-068\u0000explanation']);
