@@ -1,17 +1,21 @@
 {
   "schemaVersion": 1,
-  "subjectBankVersion": "subject-txt-3015a97d6e9a5bbb",
+  "subjectBankVersion": "subject-txt-eea2abb257a9a944",
   "discoveredTextFiles": 11,
   "parsedFiles": 11,
   "failedFiles": 0,
-  "totalParsedQuestions": 1003,
-  "deployedQuestions": 1001,
+  "totalParsedQuestions": 1019,
+  "deployedQuestions": 1017,
   "missingAnswers": 0,
   "missingExplanations": 0,
   "invalidQuestions": 0,
   "formatAnomalies": 1,
   "duplicateGroups": 1,
   "duplicateQuestions": 2,
+  "restoredLegacyB1Groups": 13,
+  "restoredLegacyB1Questions": 29,
+  "appliedVerifiedCorrections": 1,
+  "correctedQuestionFields": 2,
   "subjects": [
     {
       "id": "subject-886e0290c4c6",
@@ -32,7 +36,7 @@
     {
       "id": "subject-437640b320ee",
       "name": "中医基础理论",
-      "count": 78,
+      "count": 82,
       "sourceName": "中医基础理论题",
       "sourceFileName": "中医基础理论题.txt",
       "order": 3
@@ -56,7 +60,7 @@
     {
       "id": "subject-2a05fbb70d6a",
       "name": "中医诊断学",
-      "count": 82,
+      "count": 94,
       "sourceName": "中医诊断学题1",
       "sourceFileName": "中医诊断学题1.txt",
       "order": 6
@@ -127,5 +131,15 @@
       }
     ],
     "remainingExactDuplicateGroups": []
-  }
+  },
+  "verifiedCorrections": [
+    {
+      "correctionId": "subject-diagnosis-29-option-c-spelling",
+      "field": "option.C",
+      "affectedQuestionIds": [
+        "SUB-2a05fbb70d6a-0029",
+        "SUB-2a05fbb70d6a-0029-S02"
+      ]
+    }
+  ]
 }

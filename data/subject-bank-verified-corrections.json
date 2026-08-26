@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-08-26",
+  "corrections": [
+    {
+      "correctionId": "subject-diagnosis-29-option-c-spelling",
+      "subjectId": "subject-2a05fbb70d6a",
+      "sourceQuestionNumber": 29,
+      "field": "option.C",
+      "before": "昏睡露晴",
+      "after": "昏睡露睛",
+      "expectedQuestionIds": [
+        "SUB-2a05fbb70d6a-0029",
+        "SUB-2a05fbb70d6a-0029-S02"
+      ],
+      "issueType": "source-text-typo",
+      "reason": "原始 TXT 的选项把中医诊断学术语“昏睡露睛”误写为“昏睡露晴”；同组解析、大学课程教案和完整题组资料均使用“露睛”。",
+      "sources": [
+        {
+          "name": "广西中医药大学基础医学院《中医诊断学》教案",
+          "url": "https://www.gxtcmu.edu.cn/jcyxy/jysjs/zyzdxjys/jxyhygl4/kcy4/content_27507",
+          "evidence": "本科中医诊断学教案采用十四五规划教材，并把“昏睡露睛”列为望目态术语。"
+        },
+        {
+          "name": "医学教育网：目形主病的内容和临床意义",
+          "url": "https://www.med66.com/zhongyizhuliyishi/fudaopeixun/wa2103014112.shtml",
+          "evidence": "补充核对完整备选项和两个子题，分别对应 C“昏睡露睛”和 D“双睑下垂”。"
+        }
+      ]
+    }
+  ]
+}

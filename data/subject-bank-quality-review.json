@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-26",
+  "answerExplanationHeuristic": {
+    "rule": "正确答案正文未原样出现在解析中，但至少一个其他选项正文出现；该规则只用于筛选候选。",
+    "internallyConsistentQuestionIds": [
+      "SUB-886e0290c4c6-0010",
+      "SUB-886e0290c4c6-0049",
+      "SUB-886e0290c4c6-0059",
+      "SUB-f8eb0c1c1d57-0001",
+      "SUB-f8eb0c1c1d57-0002",
+      "SUB-f8eb0c1c1d57-0021",
+      "SUB-437640b320ee-0019",
+      "SUB-437640b320ee-0020",
+      "SUB-437640b320ee-0038",
+      "SUB-437640b320ee-0041",
+      "SUB-437640b320ee-0052",
+      "SUB-8fadaa1450e8-0001",
+      "SUB-8fadaa1450e8-0006",
+      "SUB-7d747b081087-0002",
+      "SUB-7d747b081087-0003",
+      "SUB-7d747b081087-0017",
+      "SUB-7d747b081087-0029",
+      "SUB-7d747b081087-0084",
+      "SUB-7d747b081087-0109",
+      "SUB-7d747b081087-0110",
+      "SUB-2a05fbb70d6a-0004-S02",
+      "SUB-2a05fbb70d6a-0009",
+      "SUB-2a05fbb70d6a-0010",
+      "SUB-2a05fbb70d6a-0074",
+      "SUB-4aad384976f8-0010",
+      "SUB-6506ca413a14-0001",
+      "SUB-6506ca413a14-0008",
+      "SUB-6506ca413a14-0010"
+    ],
+    "disposition": "逐题检查题干、选项、答案和解析后，以上题目均属于否定式设问、同义改写或解析同时讲解干扰项；未发现答案和解析结论相反。"
+  },
+  "repeatedExplanationReview": [
+    {
+      "questionIds": [
+        "SUB-7d747b081087-0063",
+        "SUB-7d747b081087-0066"
+      ],
+      "disposition": "两个不同 A3 病例均被原始 TXT 判为异位妊娠已破损不稳定型，治法相同，重复解析不是串题。"
+    },
+    {
+      "questionIds": [
+        "SUB-7d747b081087-0064",
+        "SUB-7d747b081087-0067"
+      ],
+      "disposition": "两个不同 A3 病例均被原始 TXT 判为异位妊娠已破损不稳定型，代表方相同，重复解析不是串题。"
+    }
+  ],
+  "manualReviewCandidates": [
+    {
+      "questionId": "SUB-0ceb3f008cc1-0055",
+      "subject": "内科学",
+      "issueType": "version-sensitive-heart-failure-wording",
+      "currentAnswer": "B",
+      "reason": "题目问“不支持诊断”的检查结果。LVEF 67%不能支持射血分数降低型心衰，但不能据此排除射血分数保留型心衰；当前答案仍可能是命题语境下的最佳选项，证据不足以安全改答案。保留原题并提示人工按教材版本复核。",
+      "sources": [
+        {
+          "name": "中华医学会心血管病学分会《中国心力衰竭诊断和治疗指南2024》",
+          "url": "https://csc.cma.org.cn/art/2024/4/18/art_619_56220.html",
+          "evidence": "指南明确存在 LVEF 大于等于 50% 的射血分数保留型心衰。"
+        },
+        {
+          "name": "中华医学会心力衰竭临床路径",
+          "url": "https://www.cma.org.cn/art/2018/6/8/art_1542_221.html",
+          "evidence": "临床路径将 LVEF 大于等于 50%、典型症状体征及舒张功能异常列为射血分数保留型心衰诊断依据。"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "自动一致性审计不能证明 1017 道题的医学结论全部正确。",
+    "只有出现结构错位、明确内部冲突或可靠外部证据时才修改；其余候选保留原始内容。"
+  ]
+}

@@ -23,10 +23,10 @@ import { SUBJECT_SOURCE_METADATA } from '../scripts/subject-metadata.mjs';
 const EXPECTED_SUBJECTS = [
   ['中医儿科学', 86],
   ['中医内科学', 76],
-  ['中医基础理论', 78],
+  ['中医基础理论', 82],
   ['中医外科学', 85],
   ['中医妇科学', 115],
-  ['中医诊断学', 82],
+  ['中医诊断学', 94],
   ['中药学', 100],
   ['方剂学', 100],
   ['诊断学基础', 100],
@@ -84,6 +84,30 @@ test('TXT 解析兼容 BOM、CRLF、多行解析、B1 合并答案和 A3 共用�
   assert.deepEqual(result.issues, []);
 });
 
+test('TXT 解析恢复“配伍题 + 括号子题”旧格式并保留后续稳定 ID', () => {
+  const source = '1.普通题\nA.甲\nB.乙\nC.丙\nD.丁\nE.戊\n正确答案：A\n解析：普通解析\n\n'
+    + '2.【配伍题】\nA.甲\nB.乙\nC.丙\nD.丁\nE.戊\n'
+    + '(1)第一子题\n(2)第二子题\n正确答案：(1)B.乙 (2)D.丁\n解析：(1)第一解析\n(2)第二解析\n\n'
+    + '3.后续普通题\nA.甲\nB.乙\nC.丙\nD.丁\nE.戊\n正确答案：C\n解析：后续解析';
+  const result = parseSubjectText(source, { subjectName: '测试科目' });
+  assert.equal(result.questions.length, 4);
+  assert.deepEqual(result.questions.map(question => question.type), ['A1/A2', 'B1', 'B1', 'A1/A2']);
+  assert.deepEqual(result.questions.map(question => question.id), [
+    'SUB-54d688ad4641-0001',
+    'SUB-54d688ad4641-0002',
+    'SUB-54d688ad4641-0002-S02',
+    'SUB-54d688ad4641-0003',
+  ]);
+  assert.deepEqual(result.questions.slice(1, 3).map(question => question.prompt), ['第一子题', '第二子题']);
+  assert.deepEqual(result.questions.slice(1, 3).map(question => question.answer), ['B', 'D']);
+  assert.deepEqual(result.questions.slice(1, 3).map(question => question.sourceQuestionNumber), [2, 2]);
+  assert.deepEqual(result.questions.slice(1, 3).map(question => question.sourceSubQuestionNumber), [1, 2]);
+  assert.equal(result.questions[1].groupId, result.questions[2].groupId);
+  assert.deepEqual(result.questions[1].sharedOptions, result.questions[2].sharedOptions);
+  assert.equal(result.invalidQuestionCount, 0);
+  assert.deepEqual(result.issues, []);
+});
+
 test('TXT 解析会报告题组范围异常并阻止缺答案题进入部署结果', () => {
   const source = '(2~3)共用选项\nA.甲\nB.乙\nC.丙\nD.丁\nE.戊\n'
     + '3.缺少前一题且没有答案\n解析：只有解析';
@@ -101,15 +125,19 @@ test('科目题库统计、名称和文件归属与导入报告一致', async ()
   assert.equal(report.discoveredTextFiles, 11);
   assert.equal(report.parsedFiles, 11);
   assert.equal(report.failedFiles, 0);
-  assert.equal(report.totalParsedQuestions, 1003);
-  assert.equal(report.deployedQuestions, 1001);
+  assert.equal(report.totalParsedQuestions, 1019);
+  assert.equal(report.deployedQuestions, 1017);
   assert.equal(report.missingAnswers, 0);
   assert.equal(report.missingExplanations, 0);
   assert.equal(report.invalidQuestions, 0);
   assert.equal(report.formatAnomalies, 1);
   assert.equal(report.duplicateQuestions, 2);
+  assert.equal(report.restoredLegacyB1Groups, 13);
+  assert.equal(report.restoredLegacyB1Questions, 29);
+  assert.equal(report.appliedVerifiedCorrections, 1);
+  assert.equal(report.correctedQuestionFields, 2);
   assert.deepEqual(SUBJECTS.map(subject => [subject.name, subject.count]), EXPECTED_SUBJECTS);
-  assert.equal(SUBJECT_QUESTIONS.length, 1001);
+  assert.equal(SUBJECT_QUESTIONS.length, 1017);
 
   for (const subject of SUBJECTS) {
     assert.doesNotMatch(subject.name, /\.txt$|[\\/]/i);
@@ -124,6 +152,30 @@ test('科目题库统计、名称和文件归属与导入报告一致', async ()
     assert.ok(questions.every(question => question.subject === subject.name));
     assert.ok(questions.every(question => question.sourceSubject === subject.name));
   }
+});
+
+test('13个旧格式配伍题恢复为29个真实B1子题且示例映射完整', () => {
+  const legacyGroups = new Map();
+  for (const question of SUBJECT_QUESTIONS.filter(item => item.groupId?.includes('-B1-LEGACY-'))) {
+    if (!legacyGroups.has(question.groupId)) legacyGroups.set(question.groupId, []);
+    legacyGroups.get(question.groupId).push(question);
+  }
+  assert.equal(legacyGroups.size, 13);
+  assert.equal([...legacyGroups.values()].reduce((total, members) => total + members.length, 0), 29);
+
+  const sample = SUBJECT_QUESTIONS.filter(question => (
+    question.subjectId === 'subject-2a05fbb70d6a'
+    && question.sourceQuestionNumber === 29
+  ));
+  assert.deepEqual(sample.map(question => question.id), [
+    'SUB-2a05fbb70d6a-0029',
+    'SUB-2a05fbb70d6a-0029-S02',
+  ]);
+  assert.deepEqual(sample.map(question => question.prompt), ['脾气虚弱的目态是', '脾肾两亏的目态是']);
+  assert.deepEqual(sample.map(question => question.answer), ['C', 'D']);
+  assert.deepEqual(sample.map(question => question.options[question.answer]), ['昏睡露睛', '双睑下垂']);
+  assert.ok(sample.every(question => question.explanation.includes('昏睡露睛')));
+  assert.ok(sample.every(question => question.explanation.includes('双睑下垂')));
 });
 
 test('科目抽题严格隔离、题量不越界、不重复且不拆题组', () => {

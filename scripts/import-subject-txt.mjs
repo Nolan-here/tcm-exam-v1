@@ -14,12 +14,16 @@ import {
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 const QUESTION_RE = /^\s*(\d+)[.、]\s*(.+)$/;
+const LEGACY_B1_HEADING_RE = /^\s*(\d+)[.、]\s*[【[]?\s*配伍题\s*[】\]]?\s*[（(]?\s*[)）]?\s*$/;
+const LEGACY_B1_CHILD_RE = /^\s*[（(]\s*(\d+)\s*[)）]\s*(.+)$/;
 const OPTION_RE = /^\s*([A-EＡ-Ｅ])[.、．:：]\s*(.*)$/i;
 const ANSWER_RE = /^\s*正确答案[：:]\s*(.*)$/;
 const EXPLANATION_RE = /^\s*解析[：:]\s*(.*)$/;
 const SECTION_RE = /^\s*([一二三四五六七八九十百]+)[、.]\s*$/;
 const GROUP_RE = /^\s*[（(]\s*(\d+)\s*[~～—\-至]\s*(\d+)\s*[)）]\s*(共用选项|共用题干单选)(.*)$/;
 const SEPARATOR_RE = /^\s*=+\s*$/;
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const VERIFIED_CORRECTIONS_PATH = path.join(PROJECT_ROOT, 'data/subject-bank-verified-corrections.json');
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -113,9 +117,9 @@ function readExplanation(lines, answerIndex) {
 
 function parseAnswerMappings(answerText) {
   const mappings = new Map();
-  const mappingPattern = /(\d+)\s*[.、:]\s*([A-EＡ-Ｅ])/gi;
+  const mappingPattern = /(?:[（(]\s*(\d+)\s*[)）]|(\d+)\s*[.、:])\s*([A-EＡ-Ｅ])/gi;
   for (const match of answerText.matchAll(mappingPattern)) {
-    mappings.set(Number(match[1]), normalizeLetter(match[2]));
+    mappings.set(Number(match[1] ?? match[2]), normalizeLetter(match[3]));
   }
   if (mappings.size) return mappings;
   const single = answerText.match(/([A-EＡ-Ｅ])/i);
@@ -155,6 +159,8 @@ export function parseSubjectText(text, {
   let pendingSectionNumber = null;
   let activeGroup = null;
   let groupSequence = 0;
+  let legacyGroupSequence = 0;
+  let stableQuestionSequence = 0;
   let current = null;
   let pendingGroupQuestions = [];
 
@@ -165,6 +171,20 @@ export function parseSubjectText(text, {
   const validateAndCloseGroup = () => {
     if (!activeGroup) return;
     const members = parsed.filter(question => question.groupId === activeGroup.id);
+    if (activeGroup.legacyInline) {
+      const childNumbers = members.map(question => question.sourceSubQuestionNumber);
+      const expected = Array.from({ length: members.length }, (_, itemIndex) => itemIndex + 1);
+      if (members.length < 2 || JSON.stringify(childNumbers) !== JSON.stringify(expected)) {
+        addIssue(
+          'legacy-b1-child-mismatch',
+          `配伍题 ${activeGroup.sourceQuestionNumber} 的实际子题号为 ${childNumbers.join('、') || '无'}。`,
+          activeGroup.lineNumber,
+        );
+      }
+      activeGroup = null;
+      pendingGroupQuestions = [];
+      return;
+    }
     const actualNumbers = members.map(question => question.sourceQuestionNumber).filter(Number.isFinite);
     const expected = [];
     for (let number = activeGroup.declaredStart; number <= activeGroup.declaredEnd; number += 1) expected.push(number);
@@ -181,6 +201,10 @@ export function parseSubjectText(text, {
 
   const maybeCloseCompletedGroup = () => {
     if (!activeGroup) return;
+    if (activeGroup.legacyInline) {
+      validateAndCloseGroup();
+      return;
+    }
     const members = parsed.filter(question => question.groupId === activeGroup.id);
     const lastNumber = members.at(-1)?.sourceQuestionNumber;
     if (Number.isFinite(lastNumber) && lastNumber >= activeGroup.declaredEnd) validateAndCloseGroup();
@@ -193,12 +217,13 @@ export function parseSubjectText(text, {
     const prompt = normalizeContent(draft.prompt);
     const stem = type === 'A3' ? `${activeGroup.sharedStem} ${prompt}`.trim() : prompt;
     const question = {
-      id: `SUB-${subjectId.slice(-12)}-${String(ordinal).padStart(4, '0')}`,
+      id: `SUB-${subjectId.slice(-12)}-${String(draft.stableIdOrdinal).padStart(4, '0')}${draft.stableSubQuestionIndex > 1 ? `-S${String(draft.stableSubQuestionIndex).padStart(2, '0')}` : ''}`,
       subjectId,
       subject: subjectName,
       sourceSubject: subjectName,
       number: ordinal,
       sourceQuestionNumber: Number.isFinite(draft.sourceQuestionNumber) ? draft.sourceQuestionNumber : null,
+      ...(Number.isFinite(draft.sourceSubQuestionNumber) ? { sourceSubQuestionNumber: draft.sourceSubQuestionNumber } : {}),
       sourceSectionNumber: Number.isFinite(draft.sourceSectionNumber) ? draft.sourceSectionNumber : null,
       type,
       stem,
@@ -223,9 +248,18 @@ export function parseSubjectText(text, {
     return question;
   };
 
-  const startQuestion = (sourceQuestionNumber, prompt, lineNumber, sourceSectionNumber = null) => ({
+  const startQuestion = (sourceQuestionNumber, prompt, lineNumber, sourceSectionNumber = null, {
+    answerMappingNumber = sourceQuestionNumber,
+    stableIdOrdinal = null,
+    stableSubQuestionIndex = null,
+    sourceSubQuestionNumber = null,
+  } = {}) => ({
     sourceQuestionNumber,
     sourceSectionNumber,
+    answerMappingNumber,
+    stableIdOrdinal: stableIdOrdinal ?? ++stableQuestionSequence,
+    stableSubQuestionIndex,
+    sourceSubQuestionNumber,
     prompt: normalizeContent(prompt),
     options: {},
     lineNumber,
@@ -281,6 +315,54 @@ export function parseSubjectText(text, {
       continue;
     }
 
+    const legacyB1HeadingMatch = textLine.match(LEGACY_B1_HEADING_RE);
+    if (legacyB1HeadingMatch) {
+      validateAndCloseGroup();
+      current = null;
+      sectionPending = false;
+      pendingSectionNumber = null;
+      legacyGroupSequence += 1;
+      const sourceQuestionNumber = Number(legacyB1HeadingMatch[1]);
+      activeGroup = {
+        id: `${subjectId}-B1-LEGACY-G${String(legacyGroupSequence).padStart(3, '0')}`,
+        type: 'B1',
+        legacyInline: true,
+        sourceQuestionNumber,
+        stableIdOrdinal: ++stableQuestionSequence,
+        lineNumber: index + 1,
+        sharedOptions: null,
+        sharedStem: null,
+      };
+      index += 1;
+      const result = parseOptions(lines, index);
+      activeGroup.sharedOptions = result.options;
+      index = result.index;
+      const missing = LETTERS.filter(letter => !normalizeContent(activeGroup.sharedOptions[letter]));
+      if (missing.length) addIssue('group-missing-options', `共用选项题组缺少 ${missing.join('、')}。`, activeGroup.lineNumber);
+      continue;
+    }
+
+    const legacyB1ChildMatch = activeGroup?.legacyInline ? textLine.match(LEGACY_B1_CHILD_RE) : null;
+    if (legacyB1ChildMatch) {
+      const childNumber = Number(legacyB1ChildMatch[1]);
+      const draft = startQuestion(
+        activeGroup.sourceQuestionNumber,
+        legacyB1ChildMatch[2],
+        index + 1,
+        null,
+        {
+          answerMappingNumber: childNumber,
+          stableIdOrdinal: activeGroup.stableIdOrdinal,
+          stableSubQuestionIndex: pendingGroupQuestions.length + 1,
+          sourceSubQuestionNumber: childNumber,
+        },
+      );
+      pendingGroupQuestions.push(draft);
+      current = draft;
+      index += 1;
+      continue;
+    }
+
     const questionMatch = textLine.match(QUESTION_RE);
     if (questionMatch) {
       current = startQuestion(Number(questionMatch[1]), questionMatch[2], index + 1, pendingSectionNumber);
@@ -315,7 +397,7 @@ export function parseSubjectText(text, {
         const drafts = activeGroup?.type === 'B1' ? pendingGroupQuestions : current ? [current] : [];
         const used = new Set();
         for (const draft of drafts) {
-          const answer = answerValue.get(draft.sourceQuestionNumber);
+          const answer = answerValue.get(draft.answerMappingNumber);
           if (answer) {
             buildQuestion(draft, answer, explanationResult.explanation, index + 1);
             used.add(draft);
@@ -477,6 +559,47 @@ function generatedModule(subjects, questions, version) {
     + `export const SUBJECT_QUESTIONS = ${JSON.stringify(questions, null, 2)};\n`;
 }
 
+async function applyVerifiedCorrections(results) {
+  const correctionData = JSON.parse(await readFile(VERIFIED_CORRECTIONS_PATH, 'utf8'));
+  if (correctionData.schemaVersion !== 1 || !Array.isArray(correctionData.corrections)) {
+    throw new Error('科目题库权威修订文件结构无效');
+  }
+
+  const questions = results.flatMap(result => result.questions);
+  const applied = [];
+  for (const correction of correctionData.corrections) {
+    const match = String(correction.field).match(/^option\.([A-E])$/u);
+    if (!match) throw new Error(`不支持的科目题库修订字段：${correction.field}`);
+    const letter = match[1];
+    const affected = questions.filter(question => (
+      question.subjectId === correction.subjectId
+      && question.sourceQuestionNumber === correction.sourceQuestionNumber
+    ));
+    const actualIds = affected.map(question => question.id);
+    if (JSON.stringify(actualIds) !== JSON.stringify(correction.expectedQuestionIds)) {
+      throw new Error(`${correction.correctionId} 的目标题目发生漂移：${actualIds.join('、') || '无'}`);
+    }
+    for (const question of affected) {
+      if (question.options?.[letter] !== correction.before) {
+        throw new Error(`${correction.correctionId} 的 ${question.id} 修改前选项发生漂移`);
+      }
+      question.options[letter] = correction.after;
+      if (question.sharedOptions) {
+        if (question.sharedOptions[letter] !== correction.before) {
+          throw new Error(`${correction.correctionId} 的 ${question.id} 共用选项发生漂移`);
+        }
+        question.sharedOptions[letter] = correction.after;
+      }
+    }
+    applied.push({
+      correctionId: correction.correctionId,
+      field: correction.field,
+      affectedQuestionIds: actualIds,
+    });
+  }
+  return applied;
+}
+
 export async function importSubjectDirectory(sourceDirectory, outputModule, outputReport) {
   const textFiles = await discoverTextFiles(sourceDirectory);
   const results = [];
@@ -503,6 +626,7 @@ export async function importSubjectDirectory(sourceDirectory, outputModule, outp
   }
 
   results.sort((left, right) => left.subject.order - right.subject.order);
+  const appliedCorrections = await applyVerifiedCorrections(results);
   const duplicateNames = results
     .map(result => result.subject.name)
     .filter((name, index, names) => names.indexOf(name) !== index);
@@ -541,6 +665,10 @@ export async function importSubjectDirectory(sourceDirectory, outputModule, outp
     formatAnomalies: issues.filter(issue => !['missing-answer', 'missing-explanation'].includes(issue.code)).length,
     duplicateGroups: excludedDuplicateBlocks.length + duplicates.groupCount,
     duplicateQuestions: excludedDuplicateQuestions + duplicates.extraQuestionCount,
+    restoredLegacyB1Groups: new Set(questions.filter(question => question.groupId?.includes('-B1-LEGACY-')).map(question => question.groupId)).size,
+    restoredLegacyB1Questions: questions.filter(question => question.groupId?.includes('-B1-LEGACY-')).length,
+    appliedVerifiedCorrections: appliedCorrections.length,
+    correctedQuestionFields: appliedCorrections.reduce((total, correction) => total + correction.affectedQuestionIds.length, 0),
     subjects,
     failures,
     issues,
@@ -548,6 +676,7 @@ export async function importSubjectDirectory(sourceDirectory, outputModule, outp
       excludedExactDuplicateBlocks: excludedDuplicateBlocks,
       remainingExactDuplicateGroups: duplicates.groups,
     },
+    verifiedCorrections: appliedCorrections,
   };
 
   await mkdir(path.dirname(outputModule), { recursive: true });
@@ -562,12 +691,11 @@ async function runCli() {
   if (!sourceArgument) {
     throw new Error('用法：node scripts/import-subject-txt.mjs <TXT题库目录> [输出模块] [统计报告]');
   }
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const sourceDirectory = path.resolve(sourceArgument);
-  const outputModule = path.resolve(projectRoot, moduleArgument);
-  const outputReport = path.resolve(projectRoot, reportArgument);
+  const outputModule = path.resolve(PROJECT_ROOT, moduleArgument);
+  const outputReport = path.resolve(PROJECT_ROOT, reportArgument);
   for (const outputPath of [outputModule, outputReport]) {
-    if (!outputPath.startsWith(`${projectRoot}${path.sep}`)) throw new Error(`拒绝写入项目目录之外：${outputPath}`);
+    if (!outputPath.startsWith(`${PROJECT_ROOT}${path.sep}`)) throw new Error(`拒绝写入项目目录之外：${outputPath}`);
   }
   const report = await importSubjectDirectory(sourceDirectory, outputModule, outputReport);
   console.log(JSON.stringify(report, null, 2));

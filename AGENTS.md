@@ -70,7 +70,7 @@
 
 `npm run audit:history` 只用于 2018—2022 扫描 PDF 的来源专项规则，不得称为完整题库审计。报告时必须区分结构 `error`、内容质量 `warning`、自动结构验证和医学专业正确性。`npm test` 通过或 `audit:bank` 为 0 error，都不能证明题库没有内容问题或医学结论全部正确；warning 必须如实保留并说明受影响题目。
 
-按科目复习使用独立的 TXT 来源题池 `js/questions-subjects.js`，不得为方便筛选把它追加进年度随机/考试用的 `QUESTIONS`。修改科目 TXT 导入器、生成题库或科目抽题逻辑时，除相关测试外必须执行 `npm run audit:subjects`；报告中要把年度综合题库审计与科目 TXT 专项审计分开，并如实说明源格式异常和被排除的完全重复题。
+按科目复习使用独立的 TXT 来源题池 `js/questions-subjects.js`，不得为方便筛选把它追加进年度随机/考试用的 `QUESTIONS`。修改科目 TXT 导入器、生成题库、权威修订层或科目抽题逻辑时，除相关测试外必须执行 `npm run audit:subjects` 和 `npm run audit:subject-quality`；报告中要把年度综合题库审计与科目 TXT 专项审计分开，并如实说明源格式异常、被排除的完全重复题、已处置候选和待人工复核题。原始 TXT 保持只读，生成文件不得作为长期手工修订点；来源修订必须通过带 `before` 防漂移和证据记录的项目内修订层重复生成。
 
 ## 修改范围规则
 

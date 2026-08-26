@@ -45,6 +45,8 @@ jobs:
           exit 1
       - name: 运行桌面与移动浏览器冒烟测试
         run: npm run test:browser
+      - name: 运行科目题库修订题浏览器回归
+        run: npm run test:browser:subject-quality
       - name: 生成静态网页
         run: npm run build:pages
       - name: 配置 GitHub Pages
