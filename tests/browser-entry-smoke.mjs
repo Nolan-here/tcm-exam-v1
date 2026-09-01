@@ -78,14 +78,23 @@ async function runProfile(profile) {
     }
     await expectVisible(page.getByRole('button', { name: '随机出题' }));
     await expectVisible(page.getByRole('button', { name: '考试模式' }));
+    await expectVisible(page.getByRole('button', { name: '错题本' }));
     await screenshot(page, profile, 'homepage-modes');
 
+    await page.getByRole('button', { name: '错题本' }).click();
+    await page.getByRole('heading', { name: '错题本', exact: true }).waitFor();
+    assert.match(await page.locator('.notice').innerText(), /目前没有错题/);
+    await page.getByRole('button', { name: '返回首页' }).click();
+    await page.waitForFunction(() => document.activeElement?.matches('[data-open-wrong-book]'));
+    await ensureOpen(page.locator('[data-review-panel]'));
+
     if (profile.name === 'desktop') {
-      await reviewSummary.focus();
+      const currentReviewSummary = page.locator('[data-review-summary]');
+      await currentReviewSummary.focus();
       await page.keyboard.press('Tab');
       assert.equal(await page.locator('[data-open-review]').evaluate(element => document.activeElement === element), true);
       await page.keyboard.press('Shift+Tab');
-      assert.equal(await reviewSummary.evaluate(element => document.activeElement === element), true);
+      assert.equal(await currentReviewSummary.evaluate(element => document.activeElement === element), true);
       await page.keyboard.press('Tab');
       await page.keyboard.press('Enter');
     } else {

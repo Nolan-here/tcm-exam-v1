@@ -272,6 +272,11 @@ fieldset { margin: 0; padding: 0; border: 0; }
   font-weight: 700;
 }
 
+.wrong-book-explanation { margin-block: 1rem; }
+.wrong-book-explanation p { margin-block: .45rem; }
+.wrong-book-remove + .wrong-book-explanation { margin-top: .75rem; }
+.wrong-book-explanation + .wrong-book-remove { margin-top: .25rem; }
+
 .pagination {
   display: flex;
   flex-wrap: wrap;

@@ -8,7 +8,7 @@
   <title>中医执业医师刷题系统</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=10">
+  <link rel="stylesheet" href="styles.css?v=11">
 </head>
 <body>
   <header class="site-header">
@@ -30,6 +30,7 @@
         </div>
       </details>
       <button class="mode-button" type="button" data-open-exam>考试模式</button>
+      <button class="mode-button" type="button" data-open-wrong-book>错题本</button>
     </section>
   </main>
 
@@ -51,6 +52,17 @@
     </div>
   </dialog>
 
+  <dialog id="remove-wrong-dialog" aria-labelledby="remove-wrong-heading" aria-describedby="remove-wrong-message">
+    <div class="dialog-body">
+      <h2 id="remove-wrong-heading" tabindex="-1">确认移出错题本</h2>
+      <p id="remove-wrong-message">本题还未在错题本中作对哦，你确定要把它移出错题本吗？</p>
+      <div class="actions">
+        <button class="primary" type="button" data-confirm-remove-wrong>确定</button>
+        <button type="button" data-cancel-remove-wrong>取消</button>
+      </div>
+    </div>
+  </dialog>
+
   <div id="live-status" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
   <noscript>
@@ -59,6 +71,6 @@
       <p>本系统使用 JavaScript 在本地保存学习记录。启用后仍可离线使用，不要求登录。</p>
     </section>
   </noscript>
-  <script type="module" src="js/app.js?v=19"></script>
+  <script type="module" src="js/app.js?v=20"></script>
 </body>
 </html>

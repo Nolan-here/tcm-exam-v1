@@ -52,7 +52,7 @@ async function dispatchLifecycle(listener, event = {}) {
 test('新 Service Worker 安装完整题库并在激活后淘汰旧缓存', async () => {
   const workerSource = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   const currentCacheName = workerSource.match(/const CACHE_NAME = '([^']+)'/)?.[1];
-  assert.equal(currentCacheName, 'tcm-exam-v1-20260825-26');
+  assert.equal(currentCacheName, 'tcm-exam-v1-20260831-27');
   assert.notEqual(currentCacheName, 'tcm-exam-v1-20260825-22');
 
   const lifecycle = [];

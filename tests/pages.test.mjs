@@ -32,7 +32,8 @@ test('GitHub Pages 输出可直接进入系统并包含离线资源', async () =
   assert.match(html, /<summary class="mode-summary" data-review-summary>复习模式<\/summary>/);
   assert.match(html, /<button class="mode-button" type="button" data-open-review>随机出题<\/button>/);
   assert.match(html, /<button class="mode-button" type="button" data-open-exam>考试模式<\/button>/);
-  assert.match(html, /<script type="module" src="js\/app\.js\?v=19"><\/script>/);
+  assert.match(html, /<button class="mode-button" type="button" data-open-wrong-book>错题本<\/button>/);
+  assert.match(html, /<script type="module" src="js\/app\.js\?v=20"><\/script>/);
   assert.doesNotMatch(html, /访问密钥|github-pages-access|pages-gate/);
   const versionedFiles = (await listPublishedFiles(outputRoot))
     .filter(relativePath => relativePath.replaceAll('\\', '/') !== '.nojekyll')
@@ -52,7 +53,8 @@ test('GitHub Pages 输出可直接进入系统并包含离线资源', async () =
   assert.match(sw, new RegExp(`const CACHE_NAME = '${expectedCacheName}';`));
   assert.doesNotMatch(sw, /tcm-exam-v1-pages-20260824-24/);
   assert.doesNotMatch(sw, /pages-gate/);
-  assert.match(sw, /\.\/js\/app\.js\?v=19/);
+  assert.match(sw, /\.\/js\/app\.js\?v=20/);
+  assert.match(sw, /\.\/js\/wrong-book\.js/);
   assert.match(sw, /\.\/js\/subject-panel-focus\.js/);
   assert.match(sw, /\.\/js\/questions-subjects\.js/);
   assert.match(sw, /\.\/js\/questions-2018-2022\.js/);

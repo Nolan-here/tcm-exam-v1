@@ -22,6 +22,7 @@ const sourceFiles = [
   'assets/icon.svg',
   'js/app.js',
   'js/db.js',
+  'js/wrong-book.js',
   'js/questions-2023.js',
   'js/questions-2024.js',
   'js/questions-2018-2022.js',

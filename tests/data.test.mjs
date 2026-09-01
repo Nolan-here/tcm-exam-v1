@@ -233,11 +233,11 @@ test('备份不导出同步密码哈希且可通过格式验证', () => {
   assert.equal(validateBackup(backup).sync.passwordHash, null);
 });
 
-test('首页以原生折叠区域呈现复习模式、随机出题和按科目', async () => {
+test('首页按顺序呈现复习模式、考试模式和错题本', async () => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const mainMarkup = html.match(/<main[^>]*>([\s\S]*?)<\/main>/)?.[1] ?? '';
   const buttons = [...mainMarkup.matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map(match => match[1].trim());
-  assert.deepEqual(buttons, ['随机出题', '考试模式']);
+  assert.deepEqual(buttons, ['随机出题', '考试模式', '错题本']);
   assert.match(mainMarkup, /<details class="home-mode-panel" data-review-panel>/);
   assert.match(mainMarkup, /<summary class="mode-summary" data-review-summary>复习模式<\/summary>/);
   assert.match(mainMarkup, /<details class="subject-panel" data-subject-panel>/);
@@ -247,8 +247,11 @@ test('首页以原生折叠区域呈现复习模式、随机出题和按科目',
   assert.match(html, /data-review-count="50"/);
   assert.match(html, /data-review-count="100"/);
   assert.match(html, /data-show-custom-count/);
+  assert.match(mainMarkup, /data-open-exam>考试模式<\/button>[\s\S]*data-open-wrong-book>错题本<\/button>/);
+  assert.match(html, /<dialog id="remove-wrong-dialog"/);
+  assert.match(html, /本题还未在错题本中作对哦，你确定要把它移出错题本吗？/);
   assert.match(html, /aria-live="polite"/);
-  for (const removed of ['设置', '难度', '错题本', '收藏', '重点题']) {
+  for (const removed of ['设置', '难度', '收藏', '重点题']) {
     assert.doesNotMatch(mainMarkup, new RegExp(removed));
   }
 });
@@ -277,6 +280,7 @@ test('复习题把选项框、正文和状态合并为一个无障碍名称，�
   assert.match(app, /aria-label="\$\{esc\(accessibleName\)\}"/);
   assert.match(app, /<span aria-hidden="true">\$\{esc\(visibleName\)\}<\/span>/);
   assert.match(app, /optionResults/);
+  assert.match(app, /radio\.value === question\.answer \? 'correct' : 'wrong'/);
   assert.match(app, /正确' : '错误'/);
   assert.match(app, /<summary>本题讲解<\/summary>/);
   assert.match(app, /<summary>本组讲解<\/summary>/);
@@ -285,6 +289,9 @@ test('复习题把选项框、正文和状态合并为一个无障碍名称，�
   assert.match(app, /group-explanation/);
   assert.match(app, /showIndividualExplanation/);
   assert.match(app, /answer\.firstCorrect === false/);
+  assert.match(app, /<summary>关于本题<\/summary>/);
+  assert.match(app, /data-remove-wrong/);
+  assert.match(app, /needsWrongBookRemovalConfirmation/);
   assert.match(app, /共用题干/);
   assert.match(app, /共用备选答案/);
   assert.match(app, /createReviewPaper\(requestedCount\)/);
@@ -312,6 +319,7 @@ test('考试按四单元出题，交卷前不显示反馈或讲解，交卷后�
   assert.match(app, /答对 \$\{exam\.result\.correct\} 题，答错 \$\{exam\.result\.wrong\} 题/);
   assert.match(app, /错题和解析/);
   assert.match(app, /wrongIds/);
+  assert.match(app, /recordWrongBookEntry\(state\.wrongBook, questionId, 'exam'/);
   assert.match(app, /renderWrongResults/);
   assert.match(app, /group-result-explanation/);
   assert.match(app, />本组讲解<\/h4>/);
@@ -331,7 +339,8 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   for (const year of [2018, 2019, 2020, 2021, 2022]) {
     assert.match(worker, new RegExp(`questions-${year}\\.js`));
   }
-  assert.match(worker, /app\.js\?v=19/);
+  assert.match(worker, /app\.js\?v=20/);
+  assert.match(worker, /wrong-book\.js/);
   assert.match(worker, /subject-panel-focus\.js/);
-  assert.match(worker, /styles\.css\?v=10/);
+  assert.match(worker, /styles\.css\?v=11/);
 });

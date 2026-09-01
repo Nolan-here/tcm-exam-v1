@@ -51,7 +51,7 @@ try {
   assert.equal(await subjectPanel.getAttribute('open'), '');
   await page.waitForFunction(() => document.activeElement?.matches('[data-subject-list]'));
   assert.doesNotMatch(await subjectPanel.innerText(), /科目列表正在加载/);
-  assert.equal(await page.locator('dialog').isVisible(), false);
+  assert.equal(await page.locator('dialog:visible').count(), 0);
   await subjectSummary.focus();
   await page.keyboard.press('Space');
   assert.equal(await subjectPanel.getAttribute('open'), null);
@@ -91,7 +91,8 @@ try {
   await page.waitForFunction(element => element.getAttribute('aria-label')?.endsWith('。正确'), await correctInput.elementHandle());
   assert.equal(await firstCard.getByRole('radio', { name: new RegExp(`^${firstAnswer}\\. .+。正确$`) }).count(), 1);
   assert.equal(await firstCard.locator('.selected-correct').count(), 1);
-  assert.equal(await firstCard.locator('.selected-wrong').count(), 1);
+  assert.equal(await firstCard.locator('.selected-wrong').count(), 4);
+  assert.equal(await firstCard.getByRole('radio', { name: /。错误$/ }).count(), 4);
   assert.equal(await firstCard.locator('details').getAttribute('open'), '');
 
   const secondCard = page.locator('.question-card').nth(1);
@@ -166,6 +167,74 @@ try {
   assert.equal(await firstB1Group.locator('details.group-explanation').getAttribute('open'), '');
 
   await page.getByRole('button', { name: '返回首页' }).click();
+  await page.getByRole('button', { name: '错题本' }).click();
+  await page.getByRole('heading', { name: '错题本', exact: true }).waitFor();
+  assert.match(await page.locator('.type-progress').innerText(), /共 2 题/);
+  assert.equal(await page.locator('.question-card').count(), 1);
+
+  let wrongBookCard = page.locator('.question-card').first();
+  let about = wrongBookCard.locator('details.wrong-book-about');
+  assert.equal(await about.getAttribute('open'), null);
+  await about.locator('summary').click();
+  await wrongBookCard.getByRole('button', { name: '移出错题本' }).click();
+  const removeDialog = page.locator('#remove-wrong-dialog');
+  await removeDialog.waitFor();
+  assert.equal(
+    (await removeDialog.locator('#remove-wrong-message').innerText()).trim(),
+    '本题还未在错题本中作对哦，你确定要把它移出错题本吗？'
+  );
+  await removeDialog.getByRole('button', { name: '取消' }).click();
+  await page.waitForFunction(() => document.activeElement?.matches('[data-remove-wrong]'));
+  assert.equal(await page.locator('.question-card').count(), 1);
+  await about.locator('summary').click();
+  assert.equal(await about.getAttribute('open'), null);
+
+  const wrongBookFirstId = await wrongBookCard.getAttribute('data-question-id');
+  const wrongBookFirstAnswer = await page.evaluate(async questionId => {
+    const module = await import('./js/questions-bank.js');
+    return module.getQuestionById(questionId).answer;
+  }, wrongBookFirstId);
+  await wrongBookCard.locator(`input[value="${wrongBookFirstAnswer}"]`).check();
+  await page.waitForFunction(element => element.querySelectorAll('.selected-wrong').length === 4, await wrongBookCard.elementHandle());
+  assert.equal(await about.getAttribute('open'), null);
+  assert.equal(await wrongBookCard.locator('.selected-correct').count(), 1);
+  assert.equal(await wrongBookCard.locator('.selected-wrong').count(), 4);
+  await about.locator('summary').click();
+  assert.equal(await about.evaluate(element => (
+    [...element.children].indexOf(element.querySelector('[data-remove-wrong]'))
+      < [...element.children].indexOf(element.querySelector('.wrong-book-explanation'))
+  )), true);
+  await wrongBookCard.getByRole('button', { name: '移出错题本' }).click();
+  assert.equal(await removeDialog.isVisible(), false);
+  await page.waitForFunction(questionId => (
+    document.querySelector('.question-card')?.dataset.questionId !== questionId
+  ), wrongBookFirstId);
+  await page.waitForFunction(() => document.activeElement?.matches('.question-card h3'));
+  assert.equal(await page.locator('.question-card').count(), 1);
+
+  wrongBookCard = page.locator('.question-card').first();
+  about = wrongBookCard.locator('details.wrong-book-about');
+  const wrongBookSecondId = await wrongBookCard.getAttribute('data-question-id');
+  const wrongBookSecondAnswer = await page.evaluate(async questionId => {
+    const module = await import('./js/questions-bank.js');
+    return module.getQuestionById(questionId).answer;
+  }, wrongBookSecondId);
+  const wrongBookSecondWrong = 'ABCDE'.split('').find(letter => letter !== wrongBookSecondAnswer);
+  await wrongBookCard.locator(`input[value="${wrongBookSecondWrong}"]`).check();
+  await page.waitForFunction(element => element.hasAttribute('open'), await about.elementHandle());
+  assert.equal(await about.getAttribute('open'), '');
+  await wrongBookCard.locator(`input[value="${wrongBookSecondAnswer}"]`).check();
+  await page.waitForFunction(element => element.querySelectorAll('.selected-wrong').length === 4, await wrongBookCard.elementHandle());
+  assert.equal(await about.getAttribute('open'), '');
+  assert.equal(await about.evaluate(element => (
+    [...element.children].indexOf(element.querySelector('[data-remove-wrong]'))
+      > [...element.children].indexOf(element.querySelector('.wrong-book-explanation'))
+  )), true);
+  await wrongBookCard.getByRole('button', { name: '移出错题本' }).click();
+  await page.getByText('目前没有错题。复习模式中选错的题，以及考试交卷后的答错题和未作答题，会加入这里。', { exact: true }).waitFor();
+  await page.waitForFunction(() => document.activeElement?.matches('.page-heading'));
+  await page.getByRole('button', { name: '返回首页' }).click();
+
   const verifySubjectSession = async expectedSubject => page.evaluate(async subjectName => {
     const state = await new Promise((resolve, reject) => {
       const request = indexedDB.open('tcm-exam-v1');
@@ -224,7 +293,7 @@ try {
   assert.equal(await page.locator('.question-card details').count(), 0);
   assert.equal(await page.locator('.answer-feedback').count(), 0);
 
-  const answerCurrentType = async () => {
+  const answerCurrentType = async ({ leaveFinalQuestionUnanswered = false } = {}) => {
     const progress = await page.locator('.pagination p').innerText();
     const pageCount = Number(progress.match(/共 (\d+) 页/)?.[1]);
     assert.ok(pageCount > 0);
@@ -233,6 +302,7 @@ try {
       const count = await cards.count();
       assert.ok(count > 0 && count <= 10);
       for (let index = 0; index < count; index += 1) {
+        if (leaveFinalQuestionUnanswered && typePage === pageCount && index === count - 1) continue;
         await cards.nth(index).locator('input[value="A"]').check();
       }
       if (typePage < pageCount) {
@@ -265,9 +335,10 @@ try {
 
   await page.getByRole('heading', { name: '考试模式，第 2 单元，B1型题' }).waitFor();
   assert.ok(await page.getByRole('heading', { name: /共用备选答案/ }).count() > 0);
-  await answerCurrentType();
+  await answerCurrentType({ leaveFinalQuestionUnanswered: true });
   await page.getByRole('button', { name: '完成本单元并准备交卷' }).click();
   await page.getByRole('heading', { name: '确认提交本单元考试' }).waitFor();
+  assert.match(await page.locator('.transition-confirmation').innerText(), /全卷目前还有 1 题未作答/);
   await page.getByRole('button', { name: '确认交卷' }).click();
   await page.getByRole('heading', { name: '第 2 单元考试结果' }).waitFor();
   assert.match(await page.locator('.result-summary').innerText(), /答对 \d+ 题，答错 \d+ 题/);
@@ -281,6 +352,22 @@ try {
   );
   assert.equal(await page.locator('.wrong-question-group .wrong-question .result-options').count(), 0);
   assert.equal(await page.locator('.wrong-question-group .wrong-question h4').count(), 0);
+  const unansweredWrongCount = await page.evaluate(async () => {
+    const storedState = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('tcm-exam-v1');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        const get = database.transaction('app', 'readonly').objectStore('app').get('state');
+        get.onerror = () => reject(get.error);
+        get.onsuccess = () => { resolve(get.result); database.close(); };
+      };
+    });
+    return Object.values(storedState.wrongBook.entries).filter(entry => (
+      entry.lastSource === 'exam' && entry.lastUnanswered
+    )).length;
+  });
+  assert.equal(unansweredWrongCount, 1);
 
   const offlineContext = await browser.newContext();
   const offlinePage = await offlineContext.newPage();
@@ -292,12 +379,13 @@ try {
   await offlinePage.reload({ waitUntil: 'domcontentloaded' });
   assert.equal((await offlinePage.locator('[data-review-summary]').innerText()).trim(), '复习模式');
   assert.equal((await offlinePage.getByRole('button', { name: '考试模式' }).innerText()).trim(), '考试模式');
+  assert.equal((await offlinePage.getByRole('button', { name: '错题本' }).innerText()).trim(), '错题本');
   await offlinePage.locator('[data-review-summary]').click();
   assert.equal(await offlinePage.getByRole('button', { name: '随机出题' }).isVisible(), true);
   await offlineContext.close();
 
   assert.deepEqual(errors, []);
-  console.log('浏览器冒烟测试通过：首页折叠、随机与按科目隔离、复习题组反馈、考试题型锁定、交卷结果与离线重载均正常。');
+  console.log('浏览器冒烟测试通过：首页折叠、随机与按科目隔离、复习反馈、错题本、考试题型锁定、交卷收集与离线重载均正常。');
 } finally {
   await browser.close();
 }

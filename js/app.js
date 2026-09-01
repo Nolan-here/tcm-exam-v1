@@ -18,6 +18,14 @@ import {
 } from './questions-bank.js';
 import { loadState, saveState, createSession } from './db.js';
 import { setupSubjectPanelFocus } from './subject-panel-focus.js';
+import {
+  createShuffledWrongBookIds,
+  markWrongBookEntryCorrect,
+  needsWrongBookRemovalConfirmation,
+  recordWrongBookEntry,
+  removeWrongBookEntry,
+  WRONG_BOOK_VERSION
+} from './wrong-book.js';
 
 const main = document.querySelector('#main-content');
 const live = document.querySelector('#live-status');
@@ -27,6 +35,7 @@ const reviewCountHeading = document.querySelector('#review-count-heading');
 const customCountForm = document.querySelector('#custom-count-form');
 const customCountLabel = document.querySelector('#custom-count-label');
 const customCountInput = document.querySelector('#custom-count');
+const removeWrongDialog = document.querySelector('#remove-wrong-dialog');
 const PAGE_SIZE = 10;
 
 let state = await loadState();
@@ -35,6 +44,8 @@ let selectedSubjectId = null;
 let homeReviewOpen = false;
 let homeSubjectsOpen = false;
 let lastHomeFocus = '[data-review-summary]';
+let wrongBookSession = null;
+let pendingWrongRemovalId = null;
 
 const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
@@ -86,6 +97,7 @@ function renderHome() {
       </div>
     </details>
     <button class="mode-button" type="button" data-open-exam>考试模式</button>
+    <button class="mode-button" type="button" data-open-wrong-book>错题本</button>
   </section>`;
 }
 
@@ -111,18 +123,34 @@ function currentExam() {
   return exam;
 }
 
+function currentWrongBook() {
+  if (!wrongBookSession || wrongBookSession.mode !== 'wrong-book-v1') return null;
+  if (wrongBookSession.config?.bankVersion !== QUESTION_BANK_VERSION) return null;
+  if (wrongBookSession.config?.paperFormatVersion !== PAPER_FORMAT_VERSION) return null;
+  wrongBookSession.questionIds = wrongBookSession.questionIds.filter(questionId => (
+    state.wrongBook.entries[questionId] && getQuestionById(questionId)
+  ));
+  return wrongBookSession;
+}
+
+function hasImmediateFeedback(mode) {
+  return mode === 'review' || mode === 'wrong-book';
+}
+
 function questionOptions(question, answer, mode, compact = false) {
   return Object.entries(question.options).map(([letter, text]) => {
     const selected = answer?.current === letter;
-    const legacyResult = mode === 'review' && selected && answer?.attempts
+    const immediateFeedback = hasImmediateFeedback(mode);
+    const legacyResult = immediateFeedback && selected && answer?.attempts
       ? answer.resolved ? 'correct' : 'wrong'
       : null;
-    const result = mode === 'review' ? answer?.optionResults?.[letter] ?? legacyResult : null;
+    const revealedResult = answer?.resolved ? (letter === question.answer ? 'correct' : 'wrong') : null;
+    const result = immediateFeedback ? revealedResult ?? answer?.optionResults?.[letter] ?? legacyResult : null;
     const resultClass = result ? ` selected-${result}` : '';
     const resultText = result === 'correct' ? '。正确' : result === 'wrong' ? '。错误' : '';
     const accessibleName = `${letter}. ${text}${resultText}`;
     const visibleName = compact ? `${letter}${resultText}` : accessibleName;
-    const disabled = mode === 'review' && answer?.resolved ? ' disabled' : '';
+    const disabled = immediateFeedback && answer?.resolved ? ' disabled' : '';
     return `<label class="choice${resultClass}">
       <input type="radio" name="answer-${question.id}" value="${letter}" data-answer data-mode="${mode}" aria-label="${esc(accessibleName)}"${selected ? ' checked' : ''}${disabled}>
       <span aria-hidden="true">${esc(visibleName)}</span>
@@ -130,14 +158,30 @@ function questionOptions(question, answer, mode, compact = false) {
   }).join('');
 }
 
+function wrongBookAbout(question, answer) {
+  const removeButton = `<button class="wrong-book-remove" type="button" data-remove-wrong="${esc(question.id)}">移出错题本</button>`;
+  const firstTryCorrect = answer?.firstCorrect === true;
+  return `<details class="explanation wrong-book-about"${answer?.firstCorrect === false ? ' open' : ''}>
+    <summary>关于本题</summary>
+    ${firstTryCorrect ? removeButton : ''}
+    <section class="wrong-book-explanation" aria-label="本题答案及解析">
+      <p><strong>正确答案：${question.answer}. ${esc(question.options[question.answer])}</strong></p>
+      <p>${esc(question.explanation)}</p>
+    </section>
+    ${firstTryCorrect ? '' : removeButton}
+  </details>`;
+}
+
 function questionCard(question, sequence, answer, mode, compactOptions = false, showIndividualExplanation = true) {
-  const explanation = mode === 'review' && showIndividualExplanation
-    ? `<details class="explanation"${answer?.firstCorrect === false ? ' open' : ''}>
+  const explanation = mode === 'wrong-book'
+    ? wrongBookAbout(question, answer)
+    : mode === 'review' && showIndividualExplanation
+      ? `<details class="explanation"${answer?.firstCorrect === false ? ' open' : ''}>
         <summary>本题讲解</summary>
         <p><strong>正确答案：${question.answer}. ${esc(question.options[question.answer])}</strong></p>
         <p>${esc(question.explanation)}</p>
       </details>`
-    : '';
+      : '';
   const prompt = question.prompt || question.stem;
   return `<article class="card question-card" data-question-id="${question.id}" data-compact-options="${compactOptions}">
     <h3 id="heading-${question.id}" tabindex="-1">${sequence}. ${esc(prompt)}（ ）</h3>
@@ -318,6 +362,53 @@ function renderReview() {
     ${pagination(session, 'review', pages)}`;
 }
 
+function startWrongBook() {
+  const questionIds = createShuffledWrongBookIds(
+    Object.keys(state.wrongBook.entries),
+    getQuestionById
+  );
+  wrongBookSession = createSession(questionIds, {
+    wrongBookVersion: WRONG_BOOK_VERSION,
+    bankVersion: QUESTION_BANK_VERSION,
+    paperFormatVersion: PAPER_FORMAT_VERSION
+  }, 'wrong-book-v1');
+  setView('wrong-book');
+  announce(questionIds.length ? `已进入错题本，共 ${questionIds.length} 题。` : '错题本目前没有题目。');
+}
+
+function renderWrongBook() {
+  const session = currentWrongBook();
+  if (!session) {
+    wrongBookSession = null;
+    renderHome();
+    return;
+  }
+  if (!session.questionIds.length) {
+    main.innerHTML = `${pageHeading('错题本')}
+      <button class="back-button" type="button" data-home>返回首页</button>
+      <p class="notice">目前没有错题。复习模式中选错的题，以及考试交卷后的答错题和未作答题，会加入这里。</p>`;
+    return;
+  }
+
+  const questions = session.questionIds.map(getQuestionById);
+  const pages = createQuestionPages(questions, PAGE_SIZE);
+  session.page = Math.max(1, Math.min(pages.length, session.page));
+  const currentPage = pages[session.page - 1];
+  const typeLabel = QUESTION_TYPE_LABELS[currentPage.type] || currentPage.type;
+  const firstSequence = session.questionIds.indexOf(currentPage.questions[0].id) + 1;
+  const lastSequence = session.questionIds.indexOf(currentPage.questions.at(-1).id) + 1;
+  main.innerHTML = `${pageHeading('错题本')}
+    <button class="back-button" type="button" data-home>返回首页</button>
+    <section class="type-progress" aria-label="错题本当前进度">
+      <h3>${esc(typeLabel)}</h3>
+      <p>当前显示第 ${firstSequence} 至 ${lastSequence} 题，共 ${session.questionIds.length} 题。</p>
+    </section>
+    <section aria-label="错题本题目，${esc(typeLabel)}">
+      ${renderQuestionPage(currentPage.questions, session, 'wrong-book')}
+    </section>
+    ${pagination(session, 'wrong-book', pages)}`;
+}
+
 function renderExamUnits() {
   const resumable = currentExam();
   const resumeButton = resumable && !resumable.submitted
@@ -492,14 +583,36 @@ function renderExamResult() {
 
 function render() {
   if (view === 'review') renderReview();
+  else if (view === 'wrong-book') renderWrongBook();
   else if (view === 'exam-units') renderExamUnits();
   else if (view === 'exam-transition') renderExamTransition();
   else if (view === 'exam' || view === 'exam-result') renderExam();
   else renderHome();
 }
 
-async function saveReviewAnswer(input) {
-  const session = currentReview();
+function updateChoiceStatus(card, radio, question, result) {
+  const label = radio.closest('.choice');
+  label.classList.remove('selected-correct', 'selected-wrong');
+  label.classList.add(`selected-${result}`);
+  const optionText = `${radio.value}. ${question.options[radio.value]}。${result === 'correct' ? '正确' : '错误'}`;
+  radio.setAttribute('aria-label', optionText);
+  label.querySelector('span').textContent = card.dataset.compactOptions === 'true'
+    ? `${radio.value}。${result === 'correct' ? '正确' : '错误'}`
+    : optionText;
+}
+
+function updateWrongBookAbout(card, answer) {
+  const about = card.querySelector('.wrong-book-about');
+  const removeButton = about?.querySelector('[data-remove-wrong]');
+  const explanation = about?.querySelector('.wrong-book-explanation');
+  if (!about || !removeButton || !explanation) return;
+  if (answer.firstCorrect === true) about.insertBefore(removeButton, explanation);
+  else about.append(removeButton);
+  about.open = answer.firstCorrect === false;
+}
+
+async function saveImmediateFeedbackAnswer(input, mode) {
+  const session = mode === 'wrong-book' ? currentWrongBook() : currentReview();
   if (!session) return;
   const card = input.closest('.question-card');
   const questionId = card.dataset.questionId;
@@ -523,25 +636,43 @@ async function saveReviewAnswer(input) {
   session.answers[questionId] = answer;
   session.version = (session.version ?? 0) + 1;
   session.updatedAt = answer.updatedAt;
+  if (mode === 'review' && !correct) {
+    recordWrongBookEntry(state.wrongBook, questionId, 'review', { at: answer.updatedAt });
+  }
+  if (mode === 'wrong-book' && correct) {
+    markWrongBookEntryCorrect(state.wrongBook, questionId, answer.updatedAt);
+  }
   await saveState(state);
 
-  const selectedLabel = input.closest('.choice');
-  selectedLabel.classList.remove('selected-correct', 'selected-wrong');
-  selectedLabel.classList.add(correct ? 'selected-correct' : 'selected-wrong');
-  const optionText = `${input.value}. ${question.options[input.value]}。${correct ? '正确' : '错误'}`;
-  input.setAttribute('aria-label', optionText);
-  selectedLabel.querySelector('span').textContent = card.dataset.compactOptions === 'true'
-    ? `${input.value}。${correct ? '正确' : '错误'}`
-    : optionText;
-  const individualExplanation = card.querySelector('.explanation');
-  const groupExplanation = card.closest('.question-group')?.querySelector('.group-explanation');
-  if (individualExplanation) individualExplanation.open = answer.firstCorrect === false;
-  if (groupExplanation) {
-    const groupQuestionIds = [...card.closest('.question-group').querySelectorAll('.question-card')]
-      .map(item => item.dataset.questionId);
-    groupExplanation.open = groupQuestionIds.some(id => session.answers[id]?.firstCorrect === false);
+  if (correct) {
+    card.querySelectorAll('input[type="radio"]').forEach(radio => {
+      updateChoiceStatus(card, radio, question, radio.value === question.answer ? 'correct' : 'wrong');
+      radio.disabled = true;
+    });
+  } else {
+    updateChoiceStatus(card, input, question, 'wrong');
   }
-  if (correct) card.querySelectorAll('input[type="radio"]').forEach(radio => { radio.disabled = true; });
+
+  if (mode === 'wrong-book') {
+    updateWrongBookAbout(card, answer);
+  } else {
+    const individualExplanation = card.querySelector('.explanation');
+    const groupExplanation = card.closest('.question-group')?.querySelector('.group-explanation');
+    if (individualExplanation) individualExplanation.open = answer.firstCorrect === false;
+    if (groupExplanation) {
+      const groupQuestionIds = [...card.closest('.question-group').querySelectorAll('.question-card')]
+        .map(item => item.dataset.questionId);
+      groupExplanation.open = groupQuestionIds.some(id => session.answers[id]?.firstCorrect === false);
+    }
+  }
+}
+
+async function saveReviewAnswer(input) {
+  await saveImmediateFeedbackAnswer(input, 'review');
+}
+
+async function saveWrongBookAnswer(input) {
+  await saveImmediateFeedbackAnswer(input, 'wrong-book');
 }
 
 async function saveExamAnswer(input) {
@@ -558,7 +689,11 @@ async function saveExamAnswer(input) {
 }
 
 async function goToPage(page, mode, focusQuestionId = null) {
-  const session = mode === 'exam' ? currentExam() : currentReview();
+  const session = mode === 'exam'
+    ? currentExam()
+    : mode === 'wrong-book'
+      ? currentWrongBook()
+      : currentReview();
   if (!session) return;
   const pages = mode === 'exam'
     ? currentExamPages(session)
@@ -572,7 +707,7 @@ async function goToPage(page, mode, focusQuestionId = null) {
   scrollToTop();
   if (focusQuestionId) focusElement(`#heading-${focusQuestionId}`);
   else focusElement('.group-context h3, .question-card h3');
-  const prefix = mode === 'exam' ? '本题型' : '';
+  const prefix = mode === 'exam' ? '本题型' : mode === 'wrong-book' ? '错题本' : '';
   announce(`已到${prefix}第 ${session.page} 页，共 ${pageCount} 页。`);
 }
 
@@ -615,12 +750,43 @@ async function submitExam() {
   };
   exam.version = (exam.version ?? 0) + 1;
   exam.updatedAt = exam.completedAt;
+  for (const questionId of wrongIds) {
+    recordWrongBookEntry(state.wrongBook, questionId, 'exam', {
+      unanswered: !exam.answers[questionId]?.current,
+      at: exam.completedAt
+    });
+  }
   await saveState(state);
   view = 'exam-result';
   renderExamResult();
   scrollToTop();
   focusPageHeading();
   announce(`考试已提交，答对 ${exam.result.correct} 题，答错 ${exam.result.wrong} 题。`);
+}
+
+function openWrongRemovalDialog(questionId) {
+  pendingWrongRemovalId = questionId;
+  removeWrongDialog.showModal();
+  focusElement('[data-cancel-remove-wrong]');
+}
+
+async function removeCurrentWrong(questionId) {
+  const session = currentWrongBook();
+  const removedIndex = session?.questionIds.indexOf(questionId) ?? -1;
+  if (!removeWrongBookEntry(state.wrongBook, questionId)) return;
+  if (session && removedIndex >= 0) {
+    session.questionIds.splice(removedIndex, 1);
+    delete session.answers[questionId];
+    session.version = (session.version ?? 0) + 1;
+    session.updatedAt = new Date().toISOString();
+  }
+  await saveState(state);
+  renderWrongBook();
+  scrollToTop();
+  const nextQuestionId = session?.questionIds[removedIndex] ?? session?.questionIds.at(-1);
+  if (nextQuestionId) focusElement(`#heading-${nextQuestionId}`);
+  else focusPageHeading();
+  announce('本题已移出错题本。');
 }
 
 document.addEventListener('click', async event => {
@@ -655,7 +821,13 @@ document.addEventListener('click', async event => {
     return;
   }
   if (button.hasAttribute('data-open-exam')) {
+    lastHomeFocus = '[data-open-exam]';
     setView('exam-units');
+    return;
+  }
+  if (button.hasAttribute('data-open-wrong-book')) {
+    lastHomeFocus = '[data-open-wrong-book]';
+    startWrongBook();
     return;
   }
   if (button.dataset.examUnit) {
@@ -692,6 +864,24 @@ document.addEventListener('click', async event => {
     await confirmTypeTransition();
     return;
   }
+  if (button.dataset.removeWrong) {
+    const entry = state.wrongBook.entries[button.dataset.removeWrong];
+    if (!entry) return;
+    if (needsWrongBookRemovalConfirmation(entry)) openWrongRemovalDialog(button.dataset.removeWrong);
+    else await removeCurrentWrong(button.dataset.removeWrong);
+    return;
+  }
+  if (button.hasAttribute('data-cancel-remove-wrong')) {
+    removeWrongDialog.close();
+    return;
+  }
+  if (button.hasAttribute('data-confirm-remove-wrong')) {
+    const questionId = pendingWrongRemovalId;
+    pendingWrongRemovalId = null;
+    removeWrongDialog.close();
+    if (questionId) await removeCurrentWrong(questionId);
+    return;
+  }
   if (button.dataset.goPage) {
     await goToPage(button.dataset.goPage, button.dataset.mode);
     return;
@@ -702,6 +892,7 @@ document.addEventListener('change', async event => {
   const input = event.target;
   if (!input.matches('[data-answer]')) return;
   if (input.dataset.mode === 'review') await saveReviewAnswer(input);
+  else if (input.dataset.mode === 'wrong-book') await saveWrongBookAnswer(input);
   else await saveExamAnswer(input);
 });
 
@@ -720,6 +911,14 @@ document.addEventListener('submit', async event => {
 
 reviewDialog.addEventListener('close', () => {
   if (view === 'home') focusElement(lastHomeFocus);
+});
+
+removeWrongDialog.addEventListener('close', () => {
+  const questionId = pendingWrongRemovalId;
+  pendingWrongRemovalId = null;
+  if (view === 'wrong-book' && questionId && state.wrongBook.entries[questionId]) {
+    focusElement(`[data-remove-wrong="${CSS.escape(questionId)}"]`);
+  }
 });
 
 setupSubjectPanelFocus(document);

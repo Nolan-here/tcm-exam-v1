@@ -1,3 +1,5 @@
+import { createEmptyWrongBook, normalizeWrongBook } from './wrong-book.js';
+
 const DB_NAME = 'tcm-exam-v1';
 const DB_VERSION = 1;
 const STORE = 'app';
@@ -22,6 +24,7 @@ export function createDefaultState() {
     },
     attempts: {},
     wrongs: {},
+    wrongBook: createEmptyWrongBook(),
     favorites: {},
     important: {},
     later: {},
@@ -89,6 +92,7 @@ export function normalizeState(value) {
     settings: { ...base.settings, ...(value.settings ?? {}) },
     attempts: value.attempts ?? {},
     wrongs: value.wrongs ?? {},
+    wrongBook: normalizeWrongBook(value.wrongBook),
     favorites: value.favorites ?? {},
     important: value.important ?? {},
     later: value.later ?? {},
