@@ -1,7 +1,7 @@
-const CACHE_NAME = 'tcm-exam-v1-20260831-27';
+const CACHE_NAME = 'tcm-exam-v1-20260905-28';
 const APP_SHELL = [
   './', './index.html', './styles.css?v=11', './manifest.webmanifest', './assets/icon.svg',
-  './js/app.js?v=20', './js/subject-panel-focus.js', './js/db.js', './js/wrong-book.js', './js/questions-bank.js', './js/questions-subjects.js',
+  './js/app.js?v=21', './js/subject-panel-focus.js', './js/db.js', './js/wrong-book.js', './js/questions-bank.js', './js/questions-subjects.js',
   './js/source-confirmed-question-repairs.js',
   './js/authority-researched-explanation-backfills.js',
   './js/questions-2024.js', './js/questions-2023.js', './js/questions-2018-2022.js',
@@ -11,7 +11,8 @@ const APP_SHELL = [
 
 function deleteOldCaches() {
   return caches.keys()
-    .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))));
+    .then(keys => Promise.all(keys.filter(key => key.startsWith('tcm-exam-v1-') && key !== CACHE_NAME)
+      .map(key => caches.delete(key))));
 }
 
 async function openCompleteAppShell() {

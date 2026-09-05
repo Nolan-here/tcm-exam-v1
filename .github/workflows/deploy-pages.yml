@@ -47,6 +47,8 @@ jobs:
         run: npm run test:browser
       - name: 运行科目题库修订题浏览器回归
         run: npm run test:browser:subject-quality
+      - name: 运行通知、错题本和持久化浏览器回归
+        run: npm run test:browser:maintenance
       - name: 生成静态网页
         run: npm run build:pages
       - name: 配置 GitHub Pages

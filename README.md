@@ -51,6 +51,8 @@ npm run test:browser
 
 `test:browser` 使用 Playwright Chromium 在 1366×768 桌面视口和 390×844 移动视口运行首页高层冒烟测试，必须实际进入随机复习第一题、单科复习第一题、错题本空状态和第一单元考试第一题，并检查 11 个科目的真实可见性与 Accessibility Tree。CI 会从 Playwright 官方来源安装所需 Chromium；本机也可通过 `BROWSER_EXECUTABLE` 指向已安装的 Chrome 或 Edge。`test:browser:full` 保留更完整的复习反馈、错题收集与移出、题组、考试流转、持久化和离线回归。
 
+`npm run test:browser:maintenance` 验证三种答题流程返回首页后的通知与无障碍树、快速切换、跨页移出焦点、考试最终答案收录、题型重复确认、A3/B1 上下文、事务中止和浏览器关闭重开后的离线数据。所有浏览器检查均使用独立上下文；关闭重开测试只创建并清理本次 `tmp/maintenance-browser/profile-*` 临时配置，不读取用户实际浏览器配置。2026-09-05 功能验收对照见 `docs/maintenance-2026-09-05.md`。
+
 `audit:bank` 默认读取应用正式汇总入口 `js/questions-bank.js` 的 `QUESTIONS` 导出，因此审计范围始终是当前应用实际加载的全部题目；新增年份或题目进入正式汇总入口后会自动纳入。报告动态列出实际题数、年份、题型、题组、结构错误和内容质量警告。结构错误会使命令失败，内容警告会保留问题题目供核对，但不会为了得到绿色结果而被过滤。
 
 `audit:quality` 同样动态读取正式 `QUESTIONS`，用于第一阶段全库质量候选扫描。它逐题检查题干、选项、解析、题组题干和共用选项，报告水印、题号、题型标签、异常空格、括号、疑似 OCR 字符、缺失解析和重复题答案正文冲突。结果只是待核对候选，不能据此自动修改医学内容；可使用 `--output tmp\full-bank-quality-audit\phase1-scan.json` 保存逐条 JSON 报告。

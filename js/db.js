@@ -57,10 +57,14 @@ async function transact(mode, action) {
     const transaction = database.transaction(STORE, mode);
     const store = transaction.objectStore(STORE);
     const request = action(store);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    transaction.oncomplete = () => database.close();
-    transaction.onerror = () => reject(transaction.error);
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(request.result);
+    };
+    transaction.onabort = transaction.onerror = () => {
+      database.close();
+      reject(transaction.error || request.error || new Error('学习记录事务未能完成'));
+    };
   });
 }
 
@@ -127,11 +131,6 @@ export function createSession(questionIds, config, mode = 'practice') {
     startedAt: now(),
     completedAt: null
   });
-}
-
-export function recordActivity(state, entry) {
-  state.activity.unshift({ id: id(), at: now(), ...entry });
-  state.activity = state.activity.slice(0, 800);
 }
 
 export function backupPayload(state) {

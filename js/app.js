@@ -40,6 +40,8 @@ const PAGE_SIZE = 10;
 
 let state = await loadState();
 let view = 'home';
+let viewRevision = 0;
+let announcementFrame = null;
 let selectedSubjectId = null;
 let homeReviewOpen = false;
 let homeSubjectsOpen = false;
@@ -51,13 +53,26 @@ const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
 })[character]);
 
-function announce(message) {
+function clearAnnouncement() {
+  if (announcementFrame !== null) cancelAnimationFrame(announcementFrame);
+  announcementFrame = null;
   live.textContent = '';
-  requestAnimationFrame(() => { live.textContent = message; });
+}
+
+function announce(message) {
+  clearAnnouncement();
+  const revision = viewRevision;
+  announcementFrame = requestAnimationFrame(() => {
+    announcementFrame = null;
+    if (revision === viewRevision) live.textContent = message;
+  });
 }
 
 function focusElement(selector) {
-  requestAnimationFrame(() => document.querySelector(selector)?.focus());
+  const revision = viewRevision;
+  requestAnimationFrame(() => {
+    if (revision === viewRevision) document.querySelector(selector)?.focus();
+  });
 }
 
 function focusPageHeading() {
@@ -69,6 +84,8 @@ function scrollToTop() {
 }
 
 function setView(nextView) {
+  viewRevision += 1;
+  clearAnnouncement();
   view = nextView;
   render();
   scrollToTop();
@@ -81,6 +98,7 @@ function pageHeading(text) {
 }
 
 function renderHome() {
+  clearAnnouncement();
   main.innerHTML = `<section class="home-actions" aria-label="选择答题模式">
     <details class="home-mode-panel" data-review-panel${homeReviewOpen ? ' open' : ''}>
       <summary class="mode-summary" data-review-summary>复习模式</summary>
@@ -309,6 +327,7 @@ function openReviewCountDialog(subjectId = null) {
 }
 
 async function startReview(count) {
+  const revision = viewRevision;
   const subject = selectedSubjectId ? getSubjectById(selectedSubjectId) : null;
   const maximum = subject?.count ?? QUESTIONS.length;
   const requestedCount = Math.max(1, Math.min(maximum, Number(count) || 10));
@@ -330,6 +349,7 @@ async function startReview(count) {
   state.sessions[session.id] = session;
   state.currentSessionId = session.id;
   await saveState(state);
+  if (revision !== viewRevision || !reviewDialog.open) return;
   reviewDialog.close();
   setView('review');
   announce(`${subject ? `${subject.name}复习` : '随机出题'}已开始，共 ${actualCount} 题。`);
@@ -423,6 +443,7 @@ function renderExamUnits() {
 }
 
 async function startExam(unit) {
+  const revision = viewRevision;
   const questions = createExamPaper(unit);
   const types = [...new Set(questions.map(question => question.type))];
   const exam = createSession(questions.map(question => question.id), {
@@ -439,6 +460,7 @@ async function startExam(unit) {
   state.exams[exam.id] = exam;
   state.currentExamId = exam.id;
   await saveState(state);
+  if (revision !== viewRevision) return;
   setView('exam');
   announce(`第 ${unit} 单元考试已开始，共 ${questions.length} 题。`);
 }
@@ -534,7 +556,7 @@ function renderWrongResults(exam, wrongIds) {
   const handledGroups = new Set();
   return wrongIds.map(questionId => {
     const question = getQuestionById(questionId);
-    if (question.type !== 'B1' || !question.groupId) {
+    if (!['A3', 'B1'].includes(question.type) || !question.groupId) {
       const sequence = questionSequence(exam, question);
       return wrongQuestionCard(question, sequence, exam.answers[question.id]);
     }
@@ -543,7 +565,15 @@ function renderWrongResults(exam, wrongIds) {
     const groupQuestions = exam.questionIds
       .map(getQuestionById)
       .filter(item => item.groupId === question.groupId);
-    const block = { id: question.groupId, type: 'B1', questions: groupQuestions };
+    const block = { id: question.groupId, type: question.type, questions: groupQuestions };
+    if (block.type === 'A3') {
+      return `<section class="question-group" data-question-group="${esc(block.id)}">
+        ${groupContext(block, exam)}
+        ${groupQuestions.filter(item => wrongSet.has(item.id)).map(item => (
+          wrongQuestionCard(item, questionSequence(exam, item), exam.answers[item.id])
+        )).join('')}
+      </section>`;
+    }
     return `<section class="question-group wrong-question-group" data-question-group="${esc(block.id)}">
       ${groupContext(block, exam)}
       ${groupQuestions.filter(item => wrongSet.has(item.id)).map(item => (
@@ -688,7 +718,8 @@ async function saveExamAnswer(input) {
   await saveState(state);
 }
 
-async function goToPage(page, mode, focusQuestionId = null) {
+async function goToPage(page, mode) {
+  const revision = viewRevision;
   const session = mode === 'exam'
     ? currentExam()
     : mode === 'wrong-book'
@@ -703,15 +734,16 @@ async function goToPage(page, mode, focusQuestionId = null) {
   session.version = (session.version ?? 0) + 1;
   session.updatedAt = new Date().toISOString();
   await saveState(state);
+  if (revision !== viewRevision) return;
   render();
   scrollToTop();
-  if (focusQuestionId) focusElement(`#heading-${focusQuestionId}`);
-  else focusElement('.group-context h3, .question-card h3');
+  focusElement('.group-context h3, .question-card h3');
   const prefix = mode === 'exam' ? '本题型' : mode === 'wrong-book' ? '错题本' : '';
   announce(`已到${prefix}第 ${session.page} 页，共 ${pageCount} 页。`);
 }
 
 async function confirmTypeTransition() {
+  const revision = viewRevision;
   const exam = currentExam();
   if (!exam || exam.submitted) return;
   const currentType = currentExamType(exam);
@@ -723,10 +755,8 @@ async function confirmTypeTransition() {
     exam.version = (exam.version ?? 0) + 1;
     exam.updatedAt = new Date().toISOString();
     await saveState(state);
-    view = 'exam';
-    renderExam();
-    scrollToTop();
-    focusPageHeading();
+    if (revision !== viewRevision) return;
+    setView('exam');
     announce(`已进入${QUESTION_TYPE_LABELS[nextType] || nextType}，不能返回上一题型。`);
     return;
   }
@@ -734,6 +764,7 @@ async function confirmTypeTransition() {
 }
 
 async function submitExam() {
+  const revision = viewRevision;
   const exam = currentExam();
   if (!exam || exam.submitted) return;
   const wrongIds = exam.questionIds.filter(questionId =>
@@ -757,10 +788,8 @@ async function submitExam() {
     });
   }
   await saveState(state);
-  view = 'exam-result';
-  renderExamResult();
-  scrollToTop();
-  focusPageHeading();
+  if (revision !== viewRevision) return;
+  setView('exam-result');
   announce(`考试已提交，答对 ${exam.result.correct} 题，答错 ${exam.result.wrong} 题。`);
 }
 
@@ -771,6 +800,7 @@ function openWrongRemovalDialog(questionId) {
 }
 
 async function removeCurrentWrong(questionId) {
+  const revision = viewRevision;
   const session = currentWrongBook();
   const removedIndex = session?.questionIds.indexOf(questionId) ?? -1;
   if (!removeWrongBookEntry(state.wrongBook, questionId)) return;
@@ -780,10 +810,15 @@ async function removeCurrentWrong(questionId) {
     session.version = (session.version ?? 0) + 1;
     session.updatedAt = new Date().toISOString();
   }
+  const nextQuestionId = session?.questionIds[removedIndex] ?? session?.questionIds.at(-1);
+  if (nextQuestionId) {
+    const pages = createQuestionPages(session.questionIds.map(getQuestionById), PAGE_SIZE);
+    session.page = pages.findIndex(page => page.questions.some(question => question.id === nextQuestionId)) + 1;
+  }
   await saveState(state);
+  if (revision !== viewRevision) return;
   renderWrongBook();
   scrollToTop();
-  const nextQuestionId = session?.questionIds[removedIndex] ?? session?.questionIds.at(-1);
   if (nextQuestionId) focusElement(`#heading-${nextQuestionId}`);
   else focusPageHeading();
   announce('本题已移出错题本。');
@@ -847,21 +882,20 @@ document.addEventListener('click', async event => {
     return;
   }
   if (button.hasAttribute('data-complete-exam-type')) {
-    view = 'exam-transition';
-    renderExamTransition();
-    scrollToTop();
-    focusPageHeading();
+    setView('exam-transition');
     return;
   }
   if (button.hasAttribute('data-return-current-type')) {
-    view = 'exam';
-    renderExam();
-    scrollToTop();
-    focusPageHeading();
+    setView('exam');
     return;
   }
   if (button.hasAttribute('data-confirm-type-transition')) {
-    await confirmTypeTransition();
+    button.disabled = true;
+    try {
+      await confirmTypeTransition();
+    } finally {
+      if (button.isConnected) button.disabled = false;
+    }
     return;
   }
   if (button.dataset.removeWrong) {

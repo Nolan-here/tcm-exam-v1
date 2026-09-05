@@ -339,7 +339,7 @@ test('Service Worker 离线缓存包含新题库和当前资源版本', async ()
   for (const year of [2018, 2019, 2020, 2021, 2022]) {
     assert.match(worker, new RegExp(`questions-${year}\\.js`));
   }
-  assert.match(worker, /app\.js\?v=20/);
+  assert.match(worker, /app\.js\?v=21/);
   assert.match(worker, /wrong-book\.js/);
   assert.match(worker, /subject-panel-focus\.js/);
   assert.match(worker, /styles\.css\?v=11/);

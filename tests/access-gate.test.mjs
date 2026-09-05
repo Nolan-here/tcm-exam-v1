@@ -39,6 +39,17 @@ test('正确密钥设置安全 Cookie，随后可以访问题库资源', async (
 
   assert.equal(protectedResponse.status, 200);
   assert.match(await protectedResponse.text(), /复习模式/);
+
+  const assetResponse = path => worker.fetch(new Request(new URL(path, 'https://example.test/'), {
+    headers: { Cookie: cookie },
+  }), { ACCESS_KEY: TEST_KEY });
+  const sw = await (await assetResponse('sw.js')).text();
+  const paths = [...sw.matchAll(/['"]\.\/([^'"]+)['"]/g)].map(match => match[1]);
+  for (const path of new Set(paths)) {
+    const response = await assetResponse(path);
+    assert.equal(response.status, 200, `Worker 缺少离线资源 ${path}`);
+    if (/\.js(?:\?|$)/.test(path)) assert.match(response.headers.get('Content-Type'), /javascript/);
+  }
 });
 
 test('错误密钥不设置 Cookie，并以读屏可读警告提示重试', async () => {

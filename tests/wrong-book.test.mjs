@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createDefaultState, normalizeState } from '../js/db.js';
 import {
   createEmptyWrongBook,
   createShuffledWrongBookIds,
@@ -22,6 +23,17 @@ test('新错题本使用独立版本化数据，不迁移旧 wrongs 字段', () 
   });
 });
 
+test('加载上线前状态保留旧错题、活动和会话，不把旧记录导入新错题本', () => {
+  const old = createDefaultState();
+  delete old.wrongBook;
+  old.wrongs = { legacy: { questionId: 'legacy', attempts: 3 } };
+  old.activity = [{ id: 'old-activity' }];
+  old.sessions = { old: { mode: 'practice', answers: { legacy: 'A' } } };
+  const normalized = normalizeState(old);
+  for (const key of ['wrongs', 'activity', 'sessions']) assert.deepEqual(normalized[key], old[key]);
+  assert.deepEqual(normalized.wrongBook, createEmptyWrongBook());
+});
+
 test('复习和考试错题按题目 ID 去重，并保留来源与未作答状态', () => {
   const wrongBook = createEmptyWrongBook();
   recordWrongBookEntry(wrongBook, 'Q-1', 'review', { at: '2026-08-31T01:00:00.000Z' });
@@ -33,6 +45,8 @@ test('复习和考试错题按题目 ID 去重，并保留来源与未作答状�
   assert.deepEqual(Object.keys(wrongBook.entries), ['Q-1']);
   assert.deepEqual(wrongBook.entries['Q-1'].sources, { review: true, exam: true });
   assert.equal(wrongBook.entries['Q-1'].wrongCount, 2);
+  assert.equal(wrongBook.entries['Q-1'].createdAt, '2026-08-31T01:00:00.000Z');
+  assert.equal(wrongBook.entries['Q-1'].updatedAt, '2026-08-31T02:00:00.000Z');
   assert.equal(wrongBook.entries['Q-1'].lastUnanswered, true);
   assert.equal(needsWrongBookRemovalConfirmation(wrongBook.entries['Q-1']), true);
 });
@@ -41,6 +55,10 @@ test('错题本答对后可直接移出，移出后再次加入会重新要求�
   const wrongBook = createEmptyWrongBook();
   recordWrongBookEntry(wrongBook, 'Q-2', 'review', { at: '2026-08-31T01:00:00.000Z' });
   markWrongBookEntryCorrect(wrongBook, 'Q-2', '2026-08-31T02:00:00.000Z');
+  assert.equal(needsWrongBookRemovalConfirmation(wrongBook.entries['Q-2']), false);
+  recordWrongBookEntry(wrongBook, 'Q-2', 'review', { at: '2026-08-31T02:30:00.000Z' });
+  assert.equal(wrongBook.entries['Q-2'].wrongCount, 2);
+  assert.equal(wrongBook.entries['Q-2'].correctAt, '2026-08-31T02:00:00.000Z');
   assert.equal(needsWrongBookRemovalConfirmation(wrongBook.entries['Q-2']), false);
 
   assert.equal(removeWrongBookEntry(wrongBook, 'Q-2'), true);
