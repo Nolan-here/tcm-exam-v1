@@ -361,6 +361,8 @@ test('隔离浏览器关闭再打开及离线复习，保留旧数据、错题�
     context = await launch();
     let page = await context.newPage();
     await page.goto(baseURL, { waitUntil: 'networkidle' });
+    // 网络空闲不代表 IndexedDB 初始化完成；等待应用实际生成首页后再操作。
+    await page.waitForFunction(() => document.querySelectorAll('[data-subject-id]').length === 11);
     await startReview(page);
     const question = await answerCard(page, page.locator('.question-card').first(), false);
     await page.evaluate(async () => {
@@ -372,6 +374,7 @@ test('隔离浏览器关闭再打开及离线复习，保留旧数据、错题�
       await db.saveState(state);
     });
     await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForFunction(() => document.querySelectorAll('[data-subject-id]').length === 11);
     await page.locator('[data-open-exam]').click();
     await page.locator('[data-exam-unit="3"]').click();
     await page.locator('.question-card').first().waitFor();
@@ -386,6 +389,7 @@ test('隔离浏览器关闭再打开及离线复习，保留旧数据、错题�
     page = await context.newPage();
     await context.setOffline(true);
     await page.goto(baseURL, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelectorAll('[data-subject-id]').length === 11);
     await page.locator('[data-open-wrong-book]').click();
     await page.locator('.question-card').first().waitFor();
     assert.equal(await page.locator('.question-card').first().getAttribute('data-question-id'), question.id);
