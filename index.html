@@ -71,6 +71,21 @@
       <p>本系统使用 JavaScript 在本地保存学习记录。启用后仍可离线使用，不要求登录。</p>
     </section>
   </noscript>
+  <script>
+    // file:// 无法加载应用模块；这里使用普通脚本提供可操作的启动说明。
+    if (location.protocol === 'file:') {
+      document.getElementById('main-content').innerHTML = `
+        <section class="card" aria-labelledby="file-open-heading">
+          <h2 id="file-open-heading" tabindex="-1">请通过网页地址打开刷题系统</h2>
+          <p>当前直接打开了 index.html 文件，浏览器会阻止答题程序加载。</p>
+          <p>本地使用时，请先在项目目录运行 <code>npm start</code>，再打开本地版。也可以直接使用在线版。</p>
+          <p><a href="http://127.0.0.1:4173/">打开本地版刷题系统</a></p>
+          <p><a href="https://nolan-here.github.io/tcm-exam-v1/">打开在线版刷题系统</a></p>
+          <p>学习记录分别保存在使用过的浏览器和网址下。继续使用已有记录时，请打开原来使用的网址。</p>
+        </section>`;
+      document.getElementById('file-open-heading').focus();
+    }
+  </script>
   <script type="module" src="js/app.js?v=21"></script>
 </body>
 </html>

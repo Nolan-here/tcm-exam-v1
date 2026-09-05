@@ -51,6 +51,40 @@ async function expectVisible(locator) {
   assert.notEqual(style.opacity, '0');
 }
 
+async function assertDirectFileGuidance() {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const scriptErrors = [];
+  page.on('pageerror', error => scriptErrors.push(error.message));
+  try {
+    // 与用户直接在 Edge 地址栏打开本地 index.html 的路径一致。
+    await page.goto(new URL('../index.html', import.meta.url).href);
+    const heading = page.getByRole('heading', { name: '请通过网页地址打开刷题系统' });
+    await expectVisible(heading);
+    assert.equal(await heading.evaluate(element => document.activeElement === element), true);
+    assert.equal(await page.locator('[data-review-panel], [data-open-review], [data-open-exam], [data-open-wrong-book]').count(), 0);
+    const localLink = page.getByRole('link', { name: '打开本地版刷题系统', exact: true });
+    const onlineLink = page.getByRole('link', { name: '打开在线版刷题系统', exact: true });
+    assert.equal(await localLink.getAttribute('href'), 'http://127.0.0.1:4173/');
+    assert.equal(await onlineLink.getAttribute('href'), 'https://nolan-here.github.io/tcm-exam-v1/');
+    await page.keyboard.press('Tab');
+    assert.equal(await localLink.evaluate(element => document.activeElement === element), true);
+    await page.keyboard.press('Tab');
+    assert.equal(await onlineLink.evaluate(element => document.activeElement === element), true);
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Accessibility.enable');
+    const tree = await cdp.send('Accessibility.getFullAXTree');
+    assert.deepEqual(tree.nodes.filter(node => node.role?.value === 'link').map(node => node.name?.value), [
+      '打开本地版刷题系统', '打开在线版刷题系统',
+    ]);
+    assert.equal(tree.nodes.some(node => node.role?.value === 'button'), false);
+    assert.deepEqual(scriptErrors, []);
+    console.log('直接打开本地文件：启动说明、链接、键盘焦点和可访问树通过');
+  } finally {
+    await context.close();
+  }
+}
+
 async function runProfile(profile) {
   const context = await browser.newContext(profile);
   const page = await context.newPage();
@@ -62,6 +96,7 @@ async function runProfile(profile) {
 
   try {
     await page.goto(baseURL, { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('#file-open-heading').count(), 0);
     const reviewPanel = page.locator('[data-review-panel]');
     const reviewSummary = page.locator('[data-review-summary]');
 
@@ -159,6 +194,7 @@ async function runProfile(profile) {
 }
 
 try {
+  await assertDirectFileGuidance();
   const results = [];
   for (const profile of profiles) results.push(await runProfile(profile));
   console.log(`首页真实浏览器冒烟测试通过：${JSON.stringify(results)}`);

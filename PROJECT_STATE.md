@@ -146,6 +146,7 @@
 - 数据持久化：浏览器 IndexedDB，数据库名 `tcm-exam-v1`。
 - 离线机制：Web App Manifest 和 Service Worker 缓存网页外壳及题库。
 - 本地启动：在项目目录执行 `npm start`，访问 `http://127.0.0.1:4173/`。
+- 不支持直接打开 `index.html` 文件答题：Edge/Chrome 的 `file://` 模块跨源限制会阻止 `js/app.js` 初始化。普通内联脚本现在会把无效入口替换为启动说明和本地版、在线版链接；不自动跳转或操作学习记录。不同浏览器和网址的 IndexedDB 不共享，继续已有记录时必须使用原来的浏览器和网址。
 - 构建：Vite；`npm run build` 用于 Sites/Worker 构建，`npm run build:pages` 生成 GitHub Pages 静态目录。
 - 当前公开测试发布路径：推送 `main` 后，GitHub Actions 按仓库工作流测试并发布 GitHub Pages；每次运行是否成功以及 Pages 是否完成更新，必须查看实际工作流和公开页面。
 
@@ -154,6 +155,13 @@
 ## 5. 当前验证状态
 
 ### 已自动验证
+
+2026-09-05 本地文件直开故障已复现并处理：
+
+- 在安装的 Edge 中直接访问 `file:///D:/Codex/Projects/tcm-exam-v1/index.html`，确认 `js/app.js?v=21` 被 CORS 拦截，题量对话框不打开、科目和考试单元为 0、错题本未初始化。相同源码经 HTTP 访问正常，根因是打开方式，不能归因于错题记录损坏。
+- `index.html` 新增不依赖应用模块的启动说明；移除当前不可用的静态模式入口，聚焦说明标题，提供可用网页链接。保持原有 HTTP 应用入口与数据存储行为，固定 Service Worker 缓存升级到 `tcm-exam-v1-20260905-29`。
+- Edge 和 Chrome 均通过新增文件直开场景的可见说明、链接名称、Tab 焦点和 Accessibility Tree 检查，以及 HTTP 桌面/移动视口入口回归（11 科目、随机复习、单科复习、空错题本和考试）。Edge 完整回归通过复习答题、错题收集/练习/移出、考试交卷、持久化和离线重载；HTTP 场景无控制台错误。
+- `npm test` 64 项通过；Pages 构建、Service Worker 升级测试及 `npm run build` 通过。文件直开时浏览器仍按安全规则拦截模块请求，但启动说明的普通脚本正常运行。所有浏览器数据来自隔离上下文；真人 NVDA、争渡和 VoiceOver 对说明标题与链接的朗读尚未实测。
 
 2026-09-05 功能维护已完成本地验收，详细对照见 `docs/maintenance-2026-09-05.md`：
 

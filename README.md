@@ -31,7 +31,9 @@ npm start
 http://127.0.0.1:4173
 ```
 
-不要直接双击 `index.html`。使用本地 HTTP 服务才能可靠注册 Service Worker，并获得稳定的 IndexedDB 来源。
+不要直接双击 `index.html`，也不要在浏览器地址栏输入本地文件路径。`file://` 会阻止应用模块加载，导致随机题量、科目列表、考试和错题本均无法初始化；当前页面会显示启动说明和本地版、在线版链接。使用本地 HTTP 服务才能加载应用、注册 Service Worker，并获得稳定的 IndexedDB 来源。电脑重启后需重新运行 `npm start`。
+
+学习记录按浏览器和网址分别保存；`http://127.0.0.1:4173/`、`http://localhost:4173/` 与 GitHub Pages 不共享记录。继续已有学习记录时，请使用原来的浏览器和网址。
 
 ## GitHub Pages 长期测试
 
@@ -49,7 +51,7 @@ npm run audit:quality
 npm run test:browser
 ```
 
-`test:browser` 使用 Playwright Chromium 在 1366×768 桌面视口和 390×844 移动视口运行首页高层冒烟测试，必须实际进入随机复习第一题、单科复习第一题、错题本空状态和第一单元考试第一题，并检查 11 个科目的真实可见性与 Accessibility Tree。CI 会从 Playwright 官方来源安装所需 Chromium；本机也可通过 `BROWSER_EXECUTABLE` 指向已安装的 Chrome 或 Edge。`test:browser:full` 保留更完整的复习反馈、错题收集与移出、题组、考试流转、持久化和离线回归。
+`test:browser` 使用 Playwright Chromium 验证直接打开本地文件的启动说明、链接、键盘焦点和 Accessibility Tree，再在 1366×768 桌面视口和 390×844 移动视口运行 HTTP 首页高层冒烟测试，必须实际进入随机复习第一题、单科复习第一题、错题本空状态和第一单元考试第一题，并检查 11 个科目的真实可见性与 Accessibility Tree。CI 会从 Playwright 官方来源安装所需 Chromium；本机也可通过 `BROWSER_EXECUTABLE` 指向已安装的 Chrome 或 Edge。`test:browser:full` 保留更完整的复习反馈、错题收集与移出、题组、考试流转、持久化和离线回归。
 
 `npm run test:browser:maintenance` 验证三种答题流程返回首页后的通知与无障碍树、快速切换、跨页移出焦点、考试最终答案收录、题型重复确认、A3/B1 上下文、事务中止和浏览器关闭重开后的离线数据。所有浏览器检查均使用独立上下文；关闭重开测试只创建并清理本次 `tmp/maintenance-browser/profile-*` 临时配置，不读取用户实际浏览器配置。2026-09-05 功能验收对照见 `docs/maintenance-2026-09-05.md`。
 
